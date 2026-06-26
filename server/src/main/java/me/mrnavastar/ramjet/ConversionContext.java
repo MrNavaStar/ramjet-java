@@ -1,6 +1,7 @@
 package me.mrnavastar.ramjet;
 
 import lombok.RequiredArgsConstructor;
+import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.commons.compress.archivers.cpio.CpioArchiveEntry;
 import org.apache.commons.compress.archivers.cpio.CpioArchiveOutputStream;
 import org.apache.commons.compress.archivers.cpio.CpioConstants;
@@ -15,6 +16,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 @RequiredArgsConstructor
 public class ConversionContext {
 
+    private final OutputStream out;
     private final ConcurrentHashMap<String, Integer> inodes = new ConcurrentHashMap<>();
     private int inode = 0;
 
@@ -61,23 +63,21 @@ public class ConversionContext {
         return cpio;
     }
 
-    public void tarToCpio(TarArchiveInputStream tar, OutputStream out) {
-        Thread.ofVirtual().start(() -> {
+    public Fate<CpioArchiveOutputStream> tarToCpio(TarArchiveInputStream tar) {
+        Fate.of(() -> {
             CpioArchiveOutputStream cpio = new CpioArchiveOutputStream(out);
-            try {
-                TarArchiveEntry tarEntry;
-                while ((tarEntry = tar.getNextEntry()) != null) {
-                    if (!hasConverted(tarEntry.getName())) {
-                            cpio.putArchiveEntry(tarToCpio(tarEntry));
-                            tar.transferTo(cpio);
-                            cpio.closeArchiveEntry();
-                            cpio.flush();
-                    }
-                }
-                cpio.finish();
-            } catch (IOException e) {
 
+            TarArchiveEntry tarEntry;
+            while ((tarEntry = tar.getNextEntry()) != null) {
+                if (!hasConverted(tarEntry.getName())) {
+                    cpio.putArchiveEntry(tarToCpio(tarEntry));
+                    tar.transferTo(cpio);
+                    cpio.closeArchiveEntry();
+                    cpio.flush();
+                }
             }
+            cpio.finish();
+            return cpio;
         });
     }
 }

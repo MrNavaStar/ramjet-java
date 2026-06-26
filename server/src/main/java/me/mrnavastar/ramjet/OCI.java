@@ -10,13 +10,35 @@ import java.net.http.HttpResponse;
 import java.util.zip.GZIPInputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
+import me.mrnavastar.ramjet.util.VerifyingInputStream;
+import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
 public class OCI {
 
     private static final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
     private static final ObjectMapper mapper = new ObjectMapper();
+
+    private static Manifest manifest(String host, String repository, String tag) throws IOException, InterruptedException {
+        HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder()
+                        .uri(URI.create("https://" + host + "/v2/" + repository + "/manifests/" + tag))
+                        .header("Accept", "application/vnd.oci.image.manifest.v1+json").GET().build(),
+                HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() != 200) throw new IOException("Manifest request failed: " + response.statusCode());
+        return mapper.readValue(response.body(), Manifest.class);
+    }
+
+    public static Fate<TarArchiveInputStream> layer(String host, String repository, String digest) {
+        return Fate.of(() -> {
+            HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder()
+                            .uri(URI.create("https://" + host + "/v2/" + repository + "/blobs/" + digest))
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) throw new IOException("Layer request failed: " + response.statusCode());
+            return new TarArchiveInputStream(new GZIPInputStream(new VerifyingInputStream(response.body(), digest)));
+        });
+    }
 
     public record Descriptor(
             String digest
@@ -27,51 +49,22 @@ public class OCI {
             List<Descriptor> layers
     ) {}
 
-    private static Manifest manifest(String host, String repository, String tag) throws IOException, InterruptedException {
-        HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder()
-                .uri(URI.create("https://" + host + "/v2/" + repository + "/manifests/" + tag))
-                .header("Accept", "application/vnd.oci.image.manifest.v1+json").GET().build(),
-                HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) throw new IOException("Manifest request failed: " + response.statusCode());
-        return mapper.readValue(response.body(), Manifest.class);
-    }
-
-    private static InputStream blob(String host, String repository, String digest) throws IOException, InterruptedException {
-        HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder()
-                .uri(URI.create("https://" + host + "/v2/" + repository + "/blobs/" + digest))
-                .GET().build(),
-                HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) throw new IOException("Blob request failed: " + response.statusCode());
-        return response.body();
-    }
-
-
-    @AllArgsConstructor
-    public static class Layer {
-        private final String host;
-        private final String repo;
-        private final String digest;
-
-        public TarArchiveInputStream read() throws IOException, InterruptedException {
-            return new TarArchiveInputStream(new GZIPInputStream(blob(host, repo, digest)));
-        }
-    }
-
+    @Getter
     public static class Image {
         private final URI uri;
         private final String repo;
-        private final String tag;
+        private final Manifest manifest;
 
-        public Image(URI uri) {
+        private Image(URI uri) throws IOException, InterruptedException {
             var parts = uri.getPath().split(":");
             this.uri = uri;
             this.repo = parts[0];
-            this.tag = parts[1];
+            String tag = parts[1];
+            manifest = manifest(uri.getHost(), repo, tag);
         }
 
-        public List<Layer> layers() throws Exception {
-            return manifest(uri.getHost(), repo, tag).layers().stream()
-                    .map(layer -> new Layer(uri.getHost(), repo, layer.digest())).toList();
+        public static Fate<Image> New(URI uri) {
+            return Fate.of(() -> new Image(uri));
         }
     }
 }

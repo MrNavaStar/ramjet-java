@@ -2,6 +2,11 @@ package me.mrnavastar.ramjet;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import me.mrnavastar.ramjet.util.result.Err;
+import me.mrnavastar.ramjet.util.result.Fate;
+import me.mrnavastar.ramjet.util.result.Ok;
+import me.mrnavastar.ramjet.util.result.Result;
+import party.iroiro.luajava.LuaException;
 import party.iroiro.luajava.lua55.Lua55;
 import party.iroiro.luajava.value.LuaValue;
 
@@ -11,6 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
 public class LuaConfig {
+
+    public static class LuaConfigException extends Exception {
+        public LuaConfigException(String msg) {
+            super("Failed to evaluate lua config: " + msg);
+        }
+    }
+
     private final String code;
     private final ConcurrentHashMap<String, Results> sessions = new ConcurrentHashMap<>();
 
@@ -25,18 +37,20 @@ public class LuaConfig {
                 String str = results[0].get(key).toString();
                 if (str.isBlank()) return Optional.empty();
                 return Optional.of(str);
-            } catch (Exception _) {
+            } catch (Exception e) {
                 return Optional.empty();
             }
         }
     }
 
-    public Results resolve() {
+    public Fate<Results> resolve() {
         try(var lua = new Lua55()) {
             lua.openLibraries();
             var results = new Results(lua.eval(code));
             sessions.put(results.session.toString(), results);
-            return results;
+            return new Fate.Ok<>(results);
+        } catch (LuaException e) {
+            return new Fate.Fail<>(new LuaConfigException(e.getMessage()));
         }
     }
 

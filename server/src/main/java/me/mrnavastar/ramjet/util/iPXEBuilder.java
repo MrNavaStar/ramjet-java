@@ -1,17 +1,53 @@
 package me.mrnavastar.ramjet.util;
 
+import me.mrnavastar.ramjet.util.result.Err;
+import me.mrnavastar.ramjet.util.result.Ok;
+import me.mrnavastar.ramjet.util.result.Fate;
+
 import java.net.URI;
 import java.util.List;
 import java.util.StringJoiner;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 public class iPXEBuilder {
 
-    private final StringJoiner script = new StringJoiner("\n", "#!ipxe\n:start", "");
+    public static class iPXEBuildException extends Exception {
+        public iPXEBuildException(String msg) {
+            super("Failed to build iPXE script: " + msg);
+        }
+    }
 
-    public static iPXEBuilder Start() {
-        return new iPXEBuilder();
+    private final StringJoiner script = new StringJoiner("\n", "#!ipxe\n:start", "");
+    private Exception exception;
+
+    public static Fate<String> create(Function.ConsumerWithError<iPXEBuilder> then) {
+        iPXEBuilder builder = new iPXEBuilder();
+        try {
+            then.accept(builder);
+        } catch (Exception e) {
+            builder.exception = e;
+        }
+
+        if (builder.exception != null) return new Err<>(new iPXEBuildException(builder.exception.getMessage()));
+        builder.script.add(":end");
+        return new Ok<>(builder.script.toString());
+    }
+
+    public iPXEBuilder If(boolean condition, Runnable block) {
+        try {
+            if (condition) block.run();
+        } catch (Exception e) {
+            exception = e;
+        }
+        return this;
+    }
+
+    public <T> iPXEBuilder ForEach(List<T> items, Function.ConsumerWithError<T> block) {
+        try {
+            for (T item : items) block.accept(item);
+        } catch (Exception e) {
+            exception = e;
+        }
+        return this;
     }
 
     public iPXEBuilder Tag(String tag) {
@@ -21,16 +57,6 @@ public class iPXEBuilder {
 
     public iPXEBuilder Goto(String tag) {
         script.add("goto " + tag);
-        return this;
-    }
-
-    public iPXEBuilder If(boolean condition, Consumer<iPXEBuilder> then) {
-        if (condition) then.accept(this);
-        return this;
-    }
-
-    public <T> iPXEBuilder ForEach(List<T> items, BiConsumer<iPXEBuilder, T> each) {
-        items.forEach(i -> each.accept(this, i));
         return this;
     }
 
@@ -76,10 +102,5 @@ public class iPXEBuilder {
     public iPXEBuilder Chain(URI uri, boolean replace, String ... args) {
         script.add("chain " + (replace ? "--replace" : "") + uri);
         return this;
-    }
-
-    public String End() {
-        script.add(":end");
-        return script.toString();
     }
 }

@@ -8,16 +8,8 @@ public class Files {
 
     private void serveOCI(URI uri) throws Exception {
         var output = new ByteArrayOutputStream();
-        var ctx = new ConversionContext(output);
+        var ctx = new ConversionContext();
 
-        for (OCI.Layer layer : new OCI.Image(uri).layers()) {
-            Thread.ofVirtual().uncaughtExceptionHandler().start(() -> {
-                try {
-                    ctx.tarToCpio(layer.read());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
+
     }
 }
