@@ -8,6 +8,13 @@ subprojects {
     group = "me.mrnavastar"
     version = "0.1.0"
 
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+            vendor = JvmVendorSpec.matching("GraalVM Community")
+        }
+    }
+
     repositories {
         mavenCentral()
     }

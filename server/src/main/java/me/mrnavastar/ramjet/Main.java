@@ -2,15 +2,16 @@ package me.mrnavastar.ramjet;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
-import me.mrnavastar.ramjet.util.result.Result;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.eclipse.jgit.api.Git;
 
 import java.io.*;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 public class Main {
@@ -18,7 +19,9 @@ public class Main {
     private static final ConcurrentHashMap<String, Machine> machines = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, LuaConfig> configs = new ConcurrentHashMap<>();
 
-    private static String APP_URL = "";
+    private static final String APP_URL = getEnv("APP_URL");
+    private static final String GIT_REPO = getEnv("GIT_REPO");
+    private static final String GIT_BRANCH = getEnv("GIT_BRANCH");
 
     public static Fate<String> idle(String uuid, Map<String, String> meta) {
         return Optional.ofNullable(machines.get(uuid))
@@ -29,21 +32,11 @@ public class Main {
 
                                 Fate<String> i = Fate.of(() -> new URI(uri))
                                         .flatMap(OCI.Image::New)
-                                        .flatMap(image -> iPXE.boot(image, results.getSession(), APP_URL,
-                                                results.getString("working_dir").orElse(""),
-                                                results.getString("entrypoint").orElse(""),
-                                                results.getString("cmd").orElse(""),
-                                                results.getString("ports").orElse("")
-                                        ));
-
-                                switch (i) {
-                                    case Fate.Ok(var value) -> { }
-                                    case Fate.Fail(Throwable error) -> {}
-                                }
+                                        .flatMap(image -> iPXE.boot(image, results.getSession(), APP_URL));
                             });
 
 
-                            return null;
+                            return "";
                         })).orElse(iPXE.idle(APP_URL, machine.registered(), 10)))
                 .orElseGet(() -> {
                     machines.put(uuid, Machine.from(meta));
@@ -55,7 +48,22 @@ public class Main {
         return Optional.ofNullable(ctx.queryParam(param)).orElseThrow(() -> new NoSuchElementException(String.format("Request missing '%s' parameter", param)));
     }
 
+    private static String getEnv(String variable) {
+        var value = System.getenv(variable);
+        if (value == null) {
+            System.out.printf("Env Variable %s not set, terminating%n", variable);
+            System.exit(1);
+        }
+        return value;
+    }
+
     public static void main(String[] args) {
+        Git git = Git.cloneRepository()
+                .setURI(GIT_REPO)
+                .setBranch(GIT_BRANCH)
+                .setDirectory(new File("./config"))
+                .call();
+
         Arrays.stream(Objects.requireNonNull(new File("./configs").list()))
                 .map(filename -> {
                     try {
@@ -87,16 +95,18 @@ public class Main {
             config.routes.get("/v1/idle/{uuid}", ctx -> {
                 Map<String, String> params = ctx.queryParamMap().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, value -> value.getValue().getFirst()));
-                ctx.result(idle(ctx.pathParam("uuid"), params).unwrap());
+                ctx.result(idle(ctx.pathParam("uuid"), params).resolve());
             });
 
             config.routes.get("/v1/{repo}/blobs/{digest}", ctx -> {
                 ctx.contentType("application/gzip");
-                Fate.attempt(() -> OCI.layer(
+                Fate.attempt(() -> OCI.blob(
                     getQueryParam(ctx, "host"),
                     ctx.pathParam("repo"),
                     ctx.pathParam("digest")
-                ).flatMap(new ConversionContext(new GZIPOutputStream(ctx.res().getOutputStream()))::tarToCpio))
+                )
+                .map(GZIPInputStream::new).map(TarArchiveInputStream::new)
+                .flatMap(new ConversionContext(new GZIPOutputStream(ctx.res().getOutputStream()))::tarToCpio))
                 .resolve();
             });
 

@@ -32,19 +32,4 @@ public sealed interface Result<T, E extends Throwable> permits Err, Ok {
             return new Err<>(e);
         }
     }
-
-    @Target(ElementType.METHOD)
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface New {
-    }
-
-    @SupportedAnnotationTypes("me.mrnavastar.ramjet.util.result.Result.New")
-    @SupportedSourceVersion(SourceVersion.RELEASE_25)
-    public class ResultProcessor extends AbstractProcessor {
-
-        @Override
-        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-            return false;
-        }
-    }
 }

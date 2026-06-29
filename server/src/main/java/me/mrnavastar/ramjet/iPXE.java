@@ -1,11 +1,14 @@
 package me.mrnavastar.ramjet;
 
 import lombok.experimental.UtilityClass;
+import me.mrnavastar.ramjet.util.Mapper;
 import me.mrnavastar.ramjet.util.result.Result;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.hc.core5.net.URIBuilder;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.UUID;
 
 @UtilityClass
@@ -46,33 +49,31 @@ public final class iPXE {
         );
     }
 
-    public static Fate<String> boot(OCI.Image image, UUID session, String url, String workingDir, String entrypoint, String cmd, String ports) {
-        return iPXEBuilder.create(script ->
-            script.Set("session", session.toString())
-            .Set("image_host", image.getUri().getHost())
-            .ForEach(image.getManifest().layers(), layer ->
-                    script.Initrd(new URIBuilder(url)
-                    .setPath(String.format("/v1/%s/blobs/%s", image.getRepo(), layer.digest()))
-                    .addParameter("host", "${image_host}")
+    public static Fate<String> boot(OCI.Image image, UUID session, String url) {
+        return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.getConfig()))
+            .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
+            .flatMap(json -> iPXEBuilder.create(script ->
+                script.Set("session", session.toString())
+                .Set("image_host", image.getUri().getHost())
+                .ForEach(image.getManifest().layers(), layer ->
+                        script.Initrd(new URIBuilder(url)
+                        .setPath(String.format("/v1/%s/blobs/%s", image.getRepo(), layer.digest()))
+                        .addParameter("host", "${image_host}")
+                        .addParameter("uuid", "${uuid}")
+                        .addParameter("session", "${session}")
+                        .build()))
+                .Initrd(new URIBuilder(url)
+                    .setPath("/v1/inlet")
                     .addParameter("uuid", "${uuid}")
                     .addParameter("session", "${session}")
-                    .build()))
-            .Initrd(new URIBuilder(url)
-                .setPath("/v1/inlet")
-                .addParameter("uuid", "${uuid}")
-                .addParameter("session", "${session}")
-                .build(), "/bin/inlet", "mode=755")
-            .Chain(new URIBuilder(url)
-                .setPath("/v1/kernel")
-                .addParameter("uuid", "${uuid}")
-                .addParameter("session", "${session}")
-                .build(), true,
-                "init=/bin/inlet",
-                "ramjet.mgmt=" + url,
-                "ramjet.working_dir=" + workingDir,
-                "ramjet.entrypoint=" + entrypoint,
-                "ramjet.cmd=" + cmd,
-                "ramjet.ports=" + ports)
-        );
+                    .build(), "/bin/inlet", "mode=755")
+                .Chain(new URIBuilder(url)
+                    .setPath("/v1/kernel")
+                    .addParameter("uuid", "${uuid}")
+                    .addParameter("session", "${session}")
+                    .build(), true,
+                    "init=/bin/inlet",
+                    "ramjet=" + json)
+            ));
     }
 }

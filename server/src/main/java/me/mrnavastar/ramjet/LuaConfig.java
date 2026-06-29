@@ -2,10 +2,7 @@ package me.mrnavastar.ramjet;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import me.mrnavastar.ramjet.util.result.Err;
 import me.mrnavastar.ramjet.util.result.Fate;
-import me.mrnavastar.ramjet.util.result.Ok;
-import me.mrnavastar.ramjet.util.result.Result;
 import party.iroiro.luajava.LuaException;
 import party.iroiro.luajava.lua55.Lua55;
 import party.iroiro.luajava.value.LuaValue;
@@ -32,13 +29,13 @@ public class LuaConfig {
         private final UUID session = UUID.randomUUID();
         private final LuaValue[] results;
 
-        public Optional<String> getString(String key) {
+        public Fate<String> getString(String key) {
             try {
                 String str = results[0].get(key).toString();
-                if (str.isBlank()) return Optional.empty();
-                return Optional.of(str);
+                if (str.isBlank()) return new Fate.Err<>(new NoSuchFieldException("No value named: " + key));
+                return new Fate.Ok<>(str);
             } catch (Exception e) {
-                return Optional.empty();
+                return new Fate.Err<>(e);
             }
         }
     }
@@ -50,7 +47,7 @@ public class LuaConfig {
             sessions.put(results.session.toString(), results);
             return new Fate.Ok<>(results);
         } catch (LuaException e) {
-            return new Fate.Fail<>(new LuaConfigException(e.getMessage()));
+            return new Fate.Err<>(new LuaConfigException(e.getMessage()));
         }
     }
 

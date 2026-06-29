@@ -6,7 +6,7 @@ plugins {
 
 
 application {
-    mainClass = "me.mrnavastar.Main"
+    mainClass = "me.mrnavastar.ramjet.Main"
 }
 
 dependencies {
@@ -17,7 +17,11 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("commons-codec:commons-codec:1.22.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6.1")
+
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.0")
+
+    implementation("org.eclipse.jgit:org.eclipse.jgit:7.7.0.202606012155-r")
 
     implementation("party.iroiro.luajava:luajava:4.1.0")
     implementation ("party.iroiro.luajava:lua55:4.1.0")

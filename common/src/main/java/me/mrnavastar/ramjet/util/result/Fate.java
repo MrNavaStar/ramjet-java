@@ -2,7 +2,7 @@ package me.mrnavastar.ramjet.util.result;
 
 import java.util.function.Function;
 
-public sealed interface Fate<T> permits Fate.Ok, Fate.Fail {
+public sealed interface Fate<T> {
 
     @FunctionalInterface
     interface ThrowableFunction<T, R, E extends Exception> {
@@ -21,14 +21,22 @@ public sealed interface Fate<T> permits Fate.Ok, Fate.Fail {
 
     T resolve() throws Exception;
 
+    boolean isOk();
+
+    boolean isErr();
+
     <U> Fate<U> map(ThrowableFunction<T, U, ?> mapper);
     <U> Fate<U> flatMap(Function<T, Fate<U>> mapper);
+
+    Fate<T> or(ThrowableSupplier<T, ?> fn);
+
+    T orElse(T value);
 
     static <T> Fate<T> of(ThrowableSupplier<T, ?> fn) {
         try {
             return new Ok<>(fn.get());
         } catch (Exception e) {
-            return new Fail<>(e);
+            return new Err<>(e);
         }
     }
 
@@ -37,11 +45,11 @@ public sealed interface Fate<T> permits Fate.Ok, Fate.Fail {
             fn.run();
             return new Ok<>(null);
         } catch (Exception e) {
-            return new Fail<>(e);
+            return new Err<>(e);
         }
     }
 
-    record Fail<T>(Exception error) implements Fate<T> {
+    record Err<T>(Exception error) implements Fate<T> {
 
         @Override
         public T resolve() throws Exception {
@@ -49,13 +57,33 @@ public sealed interface Fate<T> permits Fate.Ok, Fate.Fail {
         }
 
         @Override
+        public boolean isOk() {
+            return false;
+        }
+
+        @Override
+        public boolean isErr() {
+            return true;
+        }
+
+        @Override
         public <U> Fate<U> map(ThrowableFunction<T, U, ?> mapper) {
-            return new Fail<>(error);
+            return new Err<>(error);
         }
 
         @Override
         public <U> Fate<U> flatMap(Function<T, Fate<U>> mapper) {
-            return new Fail<>(error);
+            return new Err<>(error);
+        }
+
+        @Override
+        public Fate<T> or(ThrowableSupplier<T, ?> fn) {
+            return Fate.of(fn);
+        }
+
+        @Override
+        public T orElse(T value) {
+            return value;
         }
     }
 
@@ -66,17 +94,37 @@ public sealed interface Fate<T> permits Fate.Ok, Fate.Fail {
         }
 
         @Override
+        public boolean isOk() {
+            return true;
+        }
+
+        @Override
+        public boolean isErr() {
+            return false;
+        }
+
+        @Override
         public <U> Fate<U> map(ThrowableFunction<T, U, ?> mapper) {
             try {
                 return new Ok<>(mapper.apply(value));
             } catch (Exception e) {
-                return new Fail<>(e);
+                return new Err<>(e);
             }
         }
 
         @Override
         public <U> Fate<U> flatMap(Function<T, Fate<U>> mapper) {
             return mapper.apply(value);
+        }
+
+        @Override
+        public Fate<T> or(ThrowableSupplier<T, ?> fn) {
+            return new Ok<>(value);
+        }
+
+        @Override
+        public T orElse(T value) {
+            return this.value;
         }
     }
 }
