@@ -1,7 +1,5 @@
 package me.mrnavastar.ramjet.util;
 
-import me.mrnavastar.ramjet.util.result.Err;
-import me.mrnavastar.ramjet.util.result.Ok;
 import me.mrnavastar.ramjet.util.result.Fate;
 
 import java.net.URI;
@@ -27,9 +25,9 @@ public class iPXEBuilder {
             builder.exception = e;
         }
 
-        if (builder.exception != null) return new Err<>(new iPXEBuildException(builder.exception.getMessage()));
+        if (builder.exception != null) return new Fate.Err<>(new iPXEBuildException(builder.exception.getMessage()));
         builder.script.add(":end");
-        return new Ok<>(builder.script.toString());
+        return new Fate.Ok<>(builder.script.toString());
     }
 
     public iPXEBuilder If(boolean condition, Runnable block) {

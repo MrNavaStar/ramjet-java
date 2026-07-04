@@ -7,8 +7,6 @@ public record ImageConfig(
             String architecture,
             String os,
             Optional<Config> config
-
-
 ) {
     public record Config(
             Optional<String> user,

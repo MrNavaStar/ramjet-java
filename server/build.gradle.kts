@@ -4,9 +4,18 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.10.2"
 }
 
-
 application {
-    mainClass = "me.mrnavastar.ramjet.Main"
+    mainClass = "me.mrnavastar.ramjet.Server"
+}
+
+graalvmNative {
+    toolchainDetection = true
+    binaries {
+        all {
+            buildArgs.add("-Os") // Optimize for size instead of speed
+            buildArgs.add("--no-fallback")
+        }
+    }
 }
 
 dependencies {

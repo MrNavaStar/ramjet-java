@@ -64,7 +64,7 @@ public class ConversionContext {
     }
 
     public Fate<CpioArchiveOutputStream> tarToCpio(TarArchiveInputStream tar) {
-        Fate.of(() -> {
+        return Fate.of(() -> {
             CpioArchiveOutputStream cpio = new CpioArchiveOutputStream(out);
 
             TarArchiveEntry tarEntry;

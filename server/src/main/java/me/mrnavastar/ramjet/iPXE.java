@@ -7,6 +7,7 @@ import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.hc.core5.net.URIBuilder;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.UUID;
@@ -49,7 +50,7 @@ public final class iPXE {
         );
     }
 
-    public static Fate<String> boot(OCI.Image image, UUID session, String url) {
+    public static Fate<String> boot(OCI.Image image, URI kernel, UUID session, String url) {
         return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.getConfig()))
             .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
             .flatMap(json -> iPXEBuilder.create(script ->
@@ -58,19 +59,20 @@ public final class iPXE {
                 .ForEach(image.getManifest().layers(), layer ->
                         script.Initrd(new URIBuilder(url)
                         .setPath(String.format("/v1/%s/blobs/%s", image.getRepo(), layer.digest()))
-                        .addParameter("host", "${image_host}")
                         .addParameter("uuid", "${uuid}")
                         .addParameter("session", "${session}")
+                        .addParameter("host", "${image_host}")
                         .build()))
                 .Initrd(new URIBuilder(url)
-                    .setPath("/v1/inlet")
+                    .setPath("/v1/static/inlet")
                     .addParameter("uuid", "${uuid}")
                     .addParameter("session", "${session}")
                     .build(), "/bin/inlet", "mode=755")
                 .Chain(new URIBuilder(url)
-                    .setPath("/v1/kernel")
+                    .setPath("/v1/fetch")
                     .addParameter("uuid", "${uuid}")
                     .addParameter("session", "${session}")
+                    .addParameter("uri", kernel.toString())
                     .build(), true,
                     "init=/bin/inlet",
                     "ramjet=" + json)
