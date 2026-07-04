@@ -1,4 +1,4 @@
-FROM ghcr.io/graalvm/native-image-community:25 AS builder
+FROM ghcr.io/graalvm/native-image-community:25-muslib AS builder
 
 WORKDIR /app
 COPY . .
@@ -6,7 +6,9 @@ COPY . .
 RUN ./gradlew :server:nativeCompile --no-daemon
 RUN ./gradlew :inlet:nativeCompile --no-daemon
 
-FROM gcr.io/distroless/base-debian12
+FROM scratch
+
+ENV GIT_CONFIG_NOSYSTEM=true
 
 COPY --from=builder \
     /app/server/build/native/nativeCompile/server \

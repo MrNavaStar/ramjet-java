@@ -14,6 +14,8 @@ graalvmNative {
         all {
             buildArgs.add("-Os") // Optimize for size instead of speed
             buildArgs.add("--no-fallback")
+            buildArgs.add("--static")
+            buildArgs.add("--libc=musl")
         }
     }
 }
