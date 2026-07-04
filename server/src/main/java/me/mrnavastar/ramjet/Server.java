@@ -20,13 +20,15 @@ import java.util.zip.GZIPOutputStream;
 
 public class Server {
 
+    public static final String APP_URL = Env.get("APP_URL");
+    public static final String GIT_REPO = Env.get("GIT_REPO");
+    public static final String GIT_BRANCH = Env.get("GIT_BRANCH", "main");
+    public static final int GIT_POLL_RATE = Integer.parseInt(Env.get("GIT_POLL_RATE", "60"));
+    public static final String MACHINE_DIR = Env.get("MACHINE_DIR", "machines");
+    public static final String PROFILE_DIR = Env.get("PROFILE_DIR", "profiles");
+
     private static final FateMap<String, LuaConfig.Results> machines = new FateMap<>(new ConcurrentHashMap<>());
     private static final FateMap<String, LuaConfig> profiles = new FateMap<>(new ConcurrentHashMap<>());
-
-    private static final String APP_URL = Env.get("APP_URL");
-    private static final String GIT_REPO = Env.get("GIT_REPO");
-    private static final String GIT_BRANCH = Env.get("GIT_BRANCH", "main");
-    private static final int GIT_POLL_RATE = Integer.parseInt(Env.get("GIT_POLL_RATE", "60"));
 
     public static Fate<String> idle(String uuid, Map<String, String> meta) {
         return machines.get(uuid)
@@ -48,7 +50,7 @@ public class Server {
             machines.clear();
             profiles.clear();
 
-            GitConfig.listScripts("machines")
+            GitConfig.listScripts(MACHINE_DIR)
                     .forEach(filename -> new LuaConfig(filename)
                             .resolve()
                             .flatMap(results -> {
@@ -56,7 +58,7 @@ public class Server {
                                 return null;
                             }));
 
-            GitConfig.listScripts("profiles")
+            GitConfig.listScripts(PROFILE_DIR)
                     .forEach(filename -> profiles.put(filename.replace(".lua", ""), new LuaConfig(filename)));
         });
 

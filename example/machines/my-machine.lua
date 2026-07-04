@@ -1,0 +1,4 @@
+return {
+    uuid = "",
+    profile = "nginx",
+}

@@ -1,0 +1,14 @@
+services:
+  ramjet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ramjet-server:latest
+    ports:
+      - "11722:11722"
+    environment:
+      APP_URL: "http://localhost:11722"
+      GIT_REPO: "https://github.com/MrNavaStar/ramjet-java"
+      MACHINE_DIR: "example/machines"
+      PROFILE_DIR: "example/profiles"
+    restart: unless-stopped
