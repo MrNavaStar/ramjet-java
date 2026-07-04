@@ -38,7 +38,7 @@ public class Server {
                 .flatMap(results -> results.getURI("image")
                 .flatMap(imageUri -> results.getURI("kernel")
                 .flatMap(kernelUri -> OCI.Image.New(imageUri).map(image -> iPXE.boot(image, kernelUri, results.getSession(), APP_URL))))
-                ).orElse(iPXE.idle(APP_URL, false, 10)));
+                )).orElse(iPXE.idle(APP_URL, false, 10));
     }
 
     public static String getQueryParam(Context ctx, String param) throws NoSuchElementException {
