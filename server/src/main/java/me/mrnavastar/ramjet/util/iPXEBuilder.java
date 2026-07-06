@@ -14,7 +14,7 @@ public class iPXEBuilder {
         }
     }
 
-    private final StringJoiner script = new StringJoiner("\n", "#!ipxe\n:start\n", "");
+    private final StringJoiner script = new StringJoiner("\n", "#!ipxe\n", "");
     private Exception exception;
 
     public static Fate<String> create(Function.ConsumerWithError<iPXEBuilder> then) {
@@ -99,6 +99,16 @@ public class iPXEBuilder {
 
     public iPXEBuilder Chain(URI uri, boolean replace, String ... args) {
         script.add("chain " + (replace ? "--replace " : "") + uri.toASCIIString().replace("%24%7B", "${").replace("%7D", "}"));
+        return this;
+    }
+
+    public iPXEBuilder Clear() {
+        script.add("console");
+        return this;
+    }
+
+    public iPXEBuilder SetBackground(URI uri) {
+        script.add("console --picture " + uri);
         return this;
     }
 }

@@ -16,17 +16,21 @@ import java.util.UUID;
 public final class iPXE {
 
     public static Fate<String> idle(String url, boolean registered, int query_delay) {
-        return iPXEBuilder.create(script ->
-            script.EchoMultiline("""
-                    
-                       ___  ___   __  ___ _     __
-                      / _ \\/ _ | /  |/  /(_)__ / /_
-                     / , _/ __ |/ /|_/ // / -_) __/
-                    /_/|_/_/ |_/_/  /_// /\\__/\\__/
-                                    |___/
-                    
-                    """)
+        return iPXEBuilder.create(script -> script
+            .SetBackground(new URI("http://boot.ipxe.org/ipxe.png"))
+            .Tag("start")
+            .EchoMultiline("""
+            
+               ___  ___   __  ___ _     __
+              / _ \\/ _ | /  |/  /(_)__ / /_
+             / , _/ __ |/ /|_/ // / -_) __/
+            /_/|_/_/ |_/_/  /_// /\\__/\\__/
+                            |___/
+            
+            """)
             .Set("mgmt_status", "CONNECTING")
+            .Echo("")
+            .Echo("UUID:", "${uuid}")
             .Echo("Flight Deck:", "${mgmt_status}")
             .Echo("Registered:", registered ? "YES" : "NO")
             .Echo("Task:", "NONE")
@@ -46,6 +50,7 @@ public final class iPXE {
                     .addParameter("version", "${version}")
                     .build(), true)
             .Set("mgmt_status", "OFFLINE")
+            .Clear()
             .Goto("start")
         );
     }
