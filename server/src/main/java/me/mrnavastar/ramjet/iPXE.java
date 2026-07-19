@@ -55,28 +55,21 @@ public final class iPXE {
         );
     }
 
-    public static Fate<String> boot(OCI.Image image, URI kernel, UUID session, String url) {
+    public static Fate<String> boot(OCI.Image image, URI kernel, String url) {
         return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.getConfig()))
             .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
-            .flatMap(json -> iPXEBuilder.create(script ->
-                script.Set("session", session.toString())
+            .flatMap(json -> iPXEBuilder.create(script -> script
                 .Set("image_host", image.getUri().getHost())
                 .ForEach(image.getManifest().layers(), layer ->
                         script.Initrd(new URIBuilder(url)
                         .setPath(String.format("/v1/%s/blobs/%s", image.getRepo(), layer.digest()))
-                        .addParameter("uuid", "${uuid}")
-                        .addParameter("session", "${session}")
                         .addParameter("host", "${image_host}")
                         .build()))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/static/inlet")
-                    .addParameter("uuid", "${uuid}")
-                    .addParameter("session", "${session}")
                     .build(), "/bin/inlet", "mode=755")
                 .Chain(new URIBuilder(url)
                     .setPath("/v1/fetch")
-                    .addParameter("uuid", "${uuid}")
-                    .addParameter("session", "${session}")
                     .addParameter("uri", kernel.toString())
                     .build(), true,
                     "init=/bin/inlet",

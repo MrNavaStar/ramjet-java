@@ -1,3 +1,0 @@
-#!ipxe
-dhcp
-chain http://192.168.88.69:11722/v1/idle

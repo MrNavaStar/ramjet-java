@@ -1,5 +1,13 @@
 [
   {
+    "name":"org.eclipse.jgit.api.MergeCommand$ConflictStyle",
+    "methods":[{"name":"values","parameterTypes":[] }]
+  },
+  {
+    "name":"org.eclipse.jgit.api.MergeCommand$FastForwardMode$Merge",
+    "methods":[{"name":"values","parameterTypes":[] }]
+  },
+  {
     "name":"org.eclipse.jgit.diff.DiffAlgorithm$SupportedAlgorithm",
     "methods":[{"name":"values","parameterTypes":[] }]
   },
@@ -136,6 +144,10 @@
   },
   {
     "name":"org.eclipse.jgit.lib.GcConfig$PackRefsMode",
+    "methods":[{"name":"values","parameterTypes":[] }]
+  },
+  {
+    "name":"org.eclipse.jgit.lib.BranchConfig$BranchRebaseMode",
     "methods":[{"name":"values","parameterTypes":[] }]
   },
   {

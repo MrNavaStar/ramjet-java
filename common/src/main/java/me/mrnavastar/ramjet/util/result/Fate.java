@@ -1,5 +1,6 @@
 package me.mrnavastar.ramjet.util.result;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public sealed interface Fate<T> {
@@ -12,6 +13,10 @@ public sealed interface Fate<T> {
     @FunctionalInterface
     interface ThrowableSupplier<T, E extends Exception> {
         T get() throws E;
+    }
+
+    interface ThrowableConsumer<T, E extends Exception> {
+        void accept(T val) throws E;
     }
 
     @FunctionalInterface
@@ -31,6 +36,10 @@ public sealed interface Fate<T> {
     Fate<T> or(ThrowableSupplier<T, ?> fn);
 
     T orElse(T value);
+
+    <U> Fate<U> cast(Class<U> clazz);
+
+    Fate<T> peekErr(Consumer<Exception> peeker);
 
     static <T> Fate<T> of(ThrowableSupplier<T, ?> fn) {
         try {
@@ -85,6 +94,17 @@ public sealed interface Fate<T> {
         public T orElse(T value) {
             return value;
         }
+
+        @Override
+        public <U> Fate<U> cast(Class<U> clazz) {
+            return new Err<>(error);
+        }
+
+        @Override
+        public Fate<T> peekErr(Consumer<Exception> peeker) {
+            peeker.accept(error);
+            return this;
+        }
     }
 
     record Ok<T>(T value) implements Fate<T> {
@@ -125,6 +145,20 @@ public sealed interface Fate<T> {
         @Override
         public T orElse(T value) {
             return this.value;
+        }
+
+        @Override
+        public <U> Fate<U> cast(Class<U> clazz) {
+            try {
+                return new Ok<>(clazz.cast(value));
+            } catch (Exception e) {
+                return new Err<>(e);
+            }
+        }
+
+        @Override
+        public Fate<T> peekErr(Consumer<Exception> peeker) {
+            return this;
         }
     }
 }

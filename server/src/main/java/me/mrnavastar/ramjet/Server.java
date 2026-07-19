@@ -10,6 +10,8 @@ import me.mrnavastar.ramjet.util.FateMap;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.*;
@@ -27,18 +29,25 @@ public class Server {
     public static final String MACHINE_DIR = Env.get("MACHINE_DIR", "machines");
     public static final String PROFILE_DIR = Env.get("PROFILE_DIR", "profiles");
 
-    private static final FateMap<String, LuaConfig.Results> machines = new FateMap<>(new ConcurrentHashMap<>());
+    private static final Logger logger = LoggerFactory.getLogger(Server.class);
+
+    private static final FateMap<String, FateMap<Object, Object>> machines = new FateMap<>(new ConcurrentHashMap<>());
     private static final FateMap<String, LuaConfig> profiles = new FateMap<>(new ConcurrentHashMap<>());
 
     public static Fate<String> idle(String uuid, Map<String, String> meta) {
         return machines.get(uuid)
-                .flatMap(machine -> machine.getString("profile")
+                .flatMap(machine -> machine.get("profile")
+                .cast(String.class)
                 .flatMap(profiles::get)
-                .flatMap(config -> config.setGlobal("machine", machine.getLuaValue()).resolve())
-                .flatMap(results -> results.getURI("image")
-                .flatMap(imageUri -> results.getURI("kernel")
-                .flatMap(kernelUri -> OCI.Image.New(imageUri).map(image -> iPXE.boot(image, kernelUri, results.getSession(), APP_URL))))
-                )).orElse(iPXE.idle(APP_URL, false, 10));
+                .flatMap(config -> config.setGlobal("machine", machine).resolve())
+                .flatMap(results -> results.get("image").cast(String.class)
+                .flatMap(imageUri -> results.get("kernel").cast(String.class)
+                .flatMap(kernelUri -> OCI.Image.New(URI.create(imageUri)).map(image -> iPXE.boot(image, URI.create(kernelUri), APP_URL))))))
+                .peekErr(err -> {
+                    logger.warn("UUID: {} wants to boot. Stopped by: {}", uuid, err.toString());
+                    err.printStackTrace();
+                })
+                .orElse(iPXE.idle(APP_URL, false, 10));
     }
 
     public static String getQueryParam(Context ctx, String param) throws NoSuchElementException {
@@ -51,15 +60,18 @@ public class Server {
             profiles.clear();
 
             GitConfig.listScripts(MACHINE_DIR)
-                    .forEach(filename -> new LuaConfig(filename)
-                            .resolve()
-                            .flatMap(results -> {
-                                results.getString("uuid").map(uuid -> machines.put(uuid, results));
-                                return null;
-                            }));
+                    .forEach(file -> new LuaConfig(file).resolve()
+                            .flatMap(results -> results.get("uuid").cast(String.class).map(uuid -> {
+                                logger.info("Loaded Machine Config: {}", uuid);
+                                return machines.put(uuid, results);
+                            })));
 
             GitConfig.listScripts(PROFILE_DIR)
-                    .forEach(filename -> profiles.put(filename.replace(".lua", ""), new LuaConfig(filename)));
+                    .forEach(file -> {
+                        var profile = file.getName().replace(".lua", "");
+                        profiles.put(profile, new LuaConfig(file));
+                        logger.info("Loaded Profile: {}", profile);
+                    });
         });
 
         Javalin.create(config -> {

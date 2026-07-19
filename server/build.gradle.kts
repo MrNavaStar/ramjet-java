@@ -12,12 +12,6 @@ graalvmNative {
     toolchainDetection = true
     binaries {
         all {
-            /*val buildTimeInitClasses = listOf(
-                "org.eclipse.jetty",
-                "org.eclipse.jgit",
-                "org.slf4j",
-            )*/
-
             // Packages/classes to be initialized at native image run time
             val runTimeInitClasses = listOf(
                 "org.eclipse.jgit.internal.storage.file.WindowCache",
@@ -26,11 +20,7 @@ graalvmNative {
                 "org.eclipse.jgit.transport.HttpAuthMethod",
             )
 
-            /*val buildTimeInitClasses = listOf(
-                         "org.eclipse.jetty",
-                         "org.eclipse.jgit",
-                         "org.slf4j",
-                     )*/         // Packages/classes to be re-initialized at native image run time
+            // Packages/classes to be re-initialized at native image run time
             // All org.eclipse.jgit classes are initialized at build time
             // (specified above), but due to SecureRandom seeding
             // in their static initialization blocks, some JGit classes
@@ -40,7 +30,6 @@ graalvmNative {
             )
 
             buildArgs.add("--enable-url-protocols=http,https")
-            //buildArgs.add("--initialize-at-build-time=${buildTimeInitClasses.joinToString(",")}")
             buildArgs.add("--initialize-at-run-time=${runTimeInitClasses.joinToString(",")}")
             buildArgs.add("-H:ClassInitialization=${runTimeReInitClasses.joinToString(",")}")
             buildArgs.add("-march=compatibility")
@@ -49,6 +38,8 @@ graalvmNative {
             //buildArgs.add("--no-fallback")
             buildArgs.add("--static")
             buildArgs.add("--libc=musl")
+
+            buildArgs.add("-H:-ReduceImplicitExceptionStackTraceInformation")
         }
     }
 
@@ -59,6 +50,7 @@ dependencies {
     implementation(project(path = ":common", configuration = "default"))
 
     implementation("io.javalin:javalin:7.2.2")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
 
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("commons-codec:commons-codec:1.22.0")
@@ -70,6 +62,7 @@ dependencies {
     implementation("org.eclipse.jgit:org.eclipse.jgit:7.7.0.202606012155-r")
 
     implementation("party.iroiro.luajava:luajava:4.1.0")
-    implementation ("party.iroiro.luajava:lua55:4.1.0")
-    runtimeOnly("party.iroiro.luajava:lua55-platform:4.1.0:natives-desktop")
+    implementation("party.iroiro.luajava:luaj:4.1.0")
+    //implementation ("party.iroiro.luajava:lua55:4.1.0")
+    //implementation("party.iroiro.luajava:lua55-platform:4.1.0:natives-desktop")
 }

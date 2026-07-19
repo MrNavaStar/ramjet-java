@@ -3,8 +3,9 @@ FROM ghcr.io/graalvm/native-image-community:25-muslib AS builder
 WORKDIR /app
 COPY . .
 
-RUN ./gradlew :server:nativeCompile --no-daemon
 RUN ./gradlew :inlet:nativeCompile --no-daemon
+RUN ./gradlew :server:nativeCompile --no-daemon
+
 
 FROM scratch
 
