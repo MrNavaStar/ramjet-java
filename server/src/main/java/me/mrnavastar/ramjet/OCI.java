@@ -58,10 +58,11 @@ public class OCI {
             HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
 
             if (response.statusCode() == 401)
-                response = http.send(request
-                                .header("Authorization", "Bearer " + fetchToken(response.headers().firstValue("www-authenticate").orElseThrow(() -> new IOException("Missing WWW-Authenticate"))))
-                                .build(),
-                        HttpResponse.BodyHandlers.ofInputStream());
+                response = fetchToken(response.headers().firstValue("www-authenticate").orElseThrow(() -> new IOException("Missing WWW-Authenticate")))
+                        .map(token -> http.send(request
+                                        .header("Authorization", "Bearer " + token)
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofInputStream())).resolve();
 
             if (response.statusCode() != 200) throw new IOException("Request failed: " + response.statusCode());
             return response;

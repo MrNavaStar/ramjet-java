@@ -163,5 +163,45 @@
     "allDeclaredMethods":true,
     "allPublicMethods":true,
     "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.OCI$ManifestList",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.OCI$Descriptor",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.OCI$Platform",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.ImageConfig",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.ImageConfig$Config",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
   }
 ]
