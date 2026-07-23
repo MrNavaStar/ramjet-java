@@ -2,7 +2,6 @@ package me.mrnavastar.ramjet;
 
 import lombok.experimental.UtilityClass;
 import me.mrnavastar.ramjet.util.Mapper;
-import me.mrnavastar.ramjet.util.result.Result;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.hc.core5.net.URIBuilder;
@@ -10,7 +9,6 @@ import org.apache.hc.core5.net.URIBuilder;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.UUID;
 
 @UtilityClass
 public final class iPXE {
@@ -56,13 +54,13 @@ public final class iPXE {
     }
 
     public static Fate<String> boot(OCI.Image image, URI kernel, String url) {
-        return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.getConfig()))
+        return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.config()))
             .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
             .flatMap(json -> iPXEBuilder.create(script -> script
-                .Set("image_host", image.getUri().getHost())
-                .ForEach(image.getManifest().layers(), layer ->
+                .Set("image_host", image.uri().getHost())
+                .ForEach(image.manifest().layers(), layer ->
                         script.Initrd(new URIBuilder(url)
-                        .setPath(String.format("/v1/%s/blobs/%s", image.getRepo(), layer.digest()))
+                        .setPath(String.format("/v1/%s/blobs/%s", image.repo(), layer.digest()))
                         .addParameter("host", "${image_host}")
                         .build()))
                 .Initrd(new URIBuilder(url)

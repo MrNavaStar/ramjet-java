@@ -155,5 +155,13 @@
     "allDeclaredFields":true,
     "allDeclaredMethods":true,
     "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name":"me.mrnavastar.ramjet.OCI$Manifest",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
   }
 ]

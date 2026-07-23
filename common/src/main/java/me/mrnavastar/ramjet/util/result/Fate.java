@@ -1,7 +1,8 @@
 package me.mrnavastar.ramjet.util.result;
 
+import java.rmi.NoSuchObjectException;
+import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 public sealed interface Fate<T> {
 
@@ -31,7 +32,7 @@ public sealed interface Fate<T> {
     boolean isErr();
 
     <U> Fate<U> map(ThrowableFunction<T, U, ?> mapper);
-    <U> Fate<U> flatMap(Function<T, Fate<U>> mapper);
+    <U> Fate<U> flatMap(ThrowableFunction<T, Fate<U>, ?> mapper);
 
     Fate<T> or(ThrowableSupplier<T, ?> fn);
 
@@ -47,6 +48,11 @@ public sealed interface Fate<T> {
         } catch (Exception e) {
             return new Err<>(e);
         }
+    }
+
+    static <T> Fate<T> of(Optional<T> optional) {
+        if (optional.isPresent()) return new Ok<>(optional.get());
+        return new Err<>(new NoSuchObjectException("Optional is empty"));
     }
 
     static <T> Fate<T> attempt(ThrowableRunnable<?> fn) {
@@ -81,7 +87,7 @@ public sealed interface Fate<T> {
         }
 
         @Override
-        public <U> Fate<U> flatMap(Function<T, Fate<U>> mapper) {
+        public <U> Fate<U> flatMap(ThrowableFunction<T, Fate<U>, ?> mapper) {
             return new Err<>(error);
         }
 
@@ -133,8 +139,12 @@ public sealed interface Fate<T> {
         }
 
         @Override
-        public <U> Fate<U> flatMap(Function<T, Fate<U>> mapper) {
-            return mapper.apply(value);
+        public <U> Fate<U> flatMap(ThrowableFunction<T, Fate<U>, ?> mapper) {
+            try {
+                return mapper.apply(value);
+            } catch (Exception e) {
+                return new Err<>(e);
+            }
         }
 
         @Override

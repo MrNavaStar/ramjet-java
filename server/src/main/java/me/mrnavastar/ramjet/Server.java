@@ -42,7 +42,8 @@ public class Server {
                 .flatMap(config -> config.setGlobal("machine", machine).resolve())
                 .flatMap(results -> results.get("image").cast(String.class)
                 .flatMap(imageUri -> results.get("kernel").cast(String.class)
-                .flatMap(kernelUri -> OCI.Image.New(URI.create(imageUri)).map(image -> iPXE.boot(image, URI.create(kernelUri), APP_URL))))))
+                .flatMap(kernelUri -> results.get("arch").cast(String.class)
+                .flatMap(arch -> OCI.resolveImage(URI.create(imageUri), arch) .map(image -> iPXE.boot(image, URI.create(kernelUri), APP_URL)))))))
                 .peekErr(err -> {
                     logger.warn("UUID: {} wants to boot. Stopped by: {}", uuid, err.toString());
                     err.printStackTrace();
@@ -105,7 +106,7 @@ public class Server {
                 Fate.attempt(() -> OCI.blob(
                     getQueryParam(ctx, "host"),
                     ctx.pathParam("repo"),
-                    ctx.pathParam("digest")
+                    new OCI.Descriptor(ctx.pathParam("digest"), 0, null)
                 )
                 .map(GZIPInputStream::new).map(TarArchiveInputStream::new)
                 .flatMap(new ConversionContext(new GZIPOutputStream(ctx.res().getOutputStream()))::tarToCpio))
