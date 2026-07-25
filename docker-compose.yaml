@@ -12,3 +12,5 @@ services:
       MACHINE_DIR: "example/machines"
       PROFILE_DIR: "example/profiles"
     restart: unless-stopped
+    volumes:
+      - ./vmlinuz:/vmlinuz
