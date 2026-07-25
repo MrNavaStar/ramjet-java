@@ -57,11 +57,10 @@ public final class iPXE {
         return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.config()))
             .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
             .flatMap(json -> iPXEBuilder.create(script -> script
-                .Set("image_host", image.uri().getHost())
                 .ForEach(image.manifest().layers(), layer ->
                         script.Initrd(new URIBuilder(url)
-                        .setPath(String.format("/v1/%s/blobs/%s", image.repo(), layer.digest()))
-                        .addParameter("host", "${image_host}")
+                        .setPath("/v1/fetch")
+                        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
                         .build()))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/static/inlet")

@@ -29,7 +29,7 @@ graalvmNative {
                 "org.eclipse.jgit.util.FileUtils:rerun",
             )
 
-            buildArgs.add("--enable-url-protocols=http,https")
+            buildArgs.add("--enable-url-protocols=http,https,file,tarToCpio")
             buildArgs.add("--initialize-at-run-time=${runTimeInitClasses.joinToString(",")}")
             buildArgs.add("-H:ClassInitialization=${runTimeReInitClasses.joinToString(",")}")
             buildArgs.add("-march=compatibility")

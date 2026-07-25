@@ -8,21 +8,14 @@ import me.mrnavastar.ramjet.config.GitConfig;
 import me.mrnavastar.ramjet.config.LuaConfig;
 import me.mrnavastar.ramjet.util.FateMap;
 import me.mrnavastar.ramjet.util.result.Fate;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 public class Server {
 
@@ -59,7 +52,7 @@ public class Server {
         return Optional.ofNullable(ctx.queryParam(param)).orElseThrow(() -> new NoSuchElementException(String.format("Request missing '%s' parameter", param)));
     }
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         GitConfig.pollRepo(GIT_REPO, GIT_BRANCH, GIT_POLL_RATE, () -> {
             machines.clear();
             profiles.clear();
@@ -105,30 +98,7 @@ public class Server {
                 ctx.result(idle(ctx.pathParam("uuid"), params).resolve());
             });
 
-            config.routes.get("/v1/<repo>/blobs/{digest}", ctx -> {
-                ctx.contentType("application/gzip");
-                Fate.attempt(() -> OCI.blob(
-                    getQueryParam(ctx, "host"),
-                    ctx.pathParam("repo"),
-                    new OCI.Descriptor(ctx.pathParam("digest"), 0, null)
-                )
-                .map(GZIPInputStream::new).map(TarArchiveInputStream::new)
-                .flatMap(new ConversionContext(new GZIPOutputStream(ctx.res().getOutputStream()))::tarToCpio))
-                .resolve();
-            });
-
-            config.routes.get("/v1/fetch", ctx -> {
-                URLConnection connection = new URI(getQueryParam(ctx, "uri")).toURL().openConnection();
-
-                long contentLength = connection.getContentLengthLong();
-                if (contentLength >= 0) ctx.res().setContentLengthLong(contentLength);
-
-                Optional.ofNullable(connection.getContentType()).ifPresent(ctx::contentType);
-
-                try (InputStream in = connection.getInputStream(); OutputStream out = ctx.res().getOutputStream()) {
-                    IOUtils.copyLarge(in, out);
-                }
-            });
+            config.routes.get("/v1/fetch", ctx -> Cache.resolveUri(URI.create(getQueryParam(ctx, "uri")), ctx));
 
         }).start(11722);
     }

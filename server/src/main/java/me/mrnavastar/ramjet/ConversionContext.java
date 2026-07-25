@@ -8,15 +8,13 @@ import org.apache.commons.compress.archivers.cpio.CpioConstants;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 
 @RequiredArgsConstructor
 public class ConversionContext {
 
-    private final OutputStream out;
     private final ConcurrentHashMap<String, Integer> inodes = new ConcurrentHashMap<>();
     private int inode = 0;
 
@@ -63,7 +61,7 @@ public class ConversionContext {
         return cpio;
     }
 
-    public Fate<CpioArchiveOutputStream> tarToCpio(TarArchiveInputStream tar) {
+/*    public Fate<CpioArchiveOutputStream> tarToCpio(TarArchiveInputStream tar) {
         return Fate.of(() -> {
             CpioArchiveOutputStream cpio = new CpioArchiveOutputStream(out);
 
@@ -79,5 +77,36 @@ public class ConversionContext {
             cpio.finish();
             return cpio;
         });
+    }*/
+
+    public InputStream tarToCpio(TarArchiveInputStream tar) {
+        try {
+            PipedInputStream in = new PipedInputStream();
+            PipedOutputStream out = new PipedOutputStream(in);
+
+            Thread.ofVirtual().start(() -> {
+                try (CpioArchiveOutputStream cpio = new CpioArchiveOutputStream(out)) {
+                    TarArchiveEntry tarEntry;
+
+                    while ((tarEntry = tar.getNextEntry()) != null) {
+                        if (!hasConverted(tarEntry.getName())) {
+                            cpio.putArchiveEntry(tarToCpio(tarEntry));
+                            tar.transferTo(cpio);
+                            cpio.closeArchiveEntry();
+                        }
+                    }
+
+                    cpio.finish();
+                } catch (IOException e) {
+                    try {
+                        out.close();
+                    } catch (IOException ignored) {}
+                }
+            });
+
+            return in;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
