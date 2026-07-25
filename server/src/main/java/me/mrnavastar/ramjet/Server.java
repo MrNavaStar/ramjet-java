@@ -13,7 +13,11 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -114,7 +118,16 @@ public class Server {
             });
 
             config.routes.get("/v1/fetch", ctx -> {
-               IOUtils.copy(new URI(getQueryParam(ctx, "uri")).toURL(), ctx.res().getOutputStream());
+                URLConnection connection = new URI(getQueryParam(ctx, "uri")).toURL().openConnection();
+
+                long contentLength = connection.getContentLengthLong();
+                if (contentLength >= 0) ctx.res().setContentLengthLong(contentLength);
+
+                Optional.ofNullable(connection.getContentType()).ifPresent(ctx::contentType);
+
+                try (InputStream in = connection.getInputStream(); OutputStream out = ctx.res().getOutputStream()) {
+                    IOUtils.copyLarge(in, out);
+                }
             });
 
         }).start(11722);

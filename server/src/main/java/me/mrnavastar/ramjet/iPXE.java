@@ -66,13 +66,12 @@ public final class iPXE {
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/static/inlet")
                     .build(), "/bin/inlet", "mode=755")
-                //.Chain(new URIBuilder(url)
-                //    .setPath("/v1/fetch")
-                //    .addParameter("uri", kernel.toString())
-               //     .build(), true,
-                //    "init=/bin/inlet",
-                //    "ramjet=" + json)
-                    .Chain(kernel, true, "init=/bin/inlet", "ramjet=" + json)
+                .Chain(new URIBuilder(url)
+                    .setPath("/v1/fetch")
+                    .addParameter("uri", kernel.toString())
+                    .build(), true,
+                     "console=ttyS0", "init=/bin/inlet",
+                    "ramjet=" + json)
             ));
     }
 }
