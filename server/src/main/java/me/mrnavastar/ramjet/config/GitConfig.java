@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 
 public class GitConfig {
 
-    private static final Path REPO_ROOT = Path.of("./config");
+    private static final Path REPO_ROOT = Path.of("/config");
 
     public static void pollRepo(String repo, String branch, int pollRate, Runnable onChange) {
         Fate<Git> git = Fate.of(() -> Git.cloneRepository()

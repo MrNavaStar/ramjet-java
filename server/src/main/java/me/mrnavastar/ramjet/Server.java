@@ -75,11 +75,6 @@ public class Server {
         Javalin.create(config -> {
             config.startup.showJavalinBanner = false;
             config.concurrency.useVirtualThreads = true;
-            config.staticFiles.add(stat -> {
-                stat.hostedPath = "/v1/static";
-                stat.directory = "/static";
-                stat.location = Location.EXTERNAL;
-            });
 
             config.routes.exception(Exception.class, (e, ctx) -> {
                 ctx.status(500);

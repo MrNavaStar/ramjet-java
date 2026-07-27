@@ -57,20 +57,23 @@ public final class iPXE {
         return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.config()))
             .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
             .flatMap(json -> iPXEBuilder.create(script -> script
-                .ForEach(image.manifest().layers(), layer ->
-                        script.Initrd(new URIBuilder(url)
+                .Kernel(new URIBuilder(url)
                         .setPath("/v1/fetch")
-                        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
-                        .build()))
-                .Initrd(new URIBuilder(url)
-                    .setPath("/v1/static/inlet")
+                        .addParameter("uri", kernel.toString())
+                        .build(),
+                        //"initrd=initrd.magic",
+                        //"root=/dev/ram0",
+                        "init=/bin/inlet",
+                        "ramjet=" + json)
+                //.ForEach(image.manifest().layers(), layer ->
+                //        script.Initrd(new URIBuilder(url)
+                //        .setPath("/v1/fetch")
+                //        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
+                //        .build()))
+                .Initrd(new URIBuilder("/v1/fetch")
+                    .setParameter("uri", "file:///static/inlet")
                     .build(), "/bin/inlet", "mode=755")
-                .Chain(new URIBuilder(url)
-                    .setPath("/v1/fetch")
-                    .addParameter("uri", kernel.toString())
-                    .build(), true,
-                     "console=ttyS0", "init=/bin/inlet",
-                    "ramjet=" + json)
+                .Boot()
             ));
     }
 }

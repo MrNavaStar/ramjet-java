@@ -98,7 +98,25 @@ public class iPXEBuilder {
     }
 
     public iPXEBuilder Chain(URI uri, boolean replace, String ... args) {
-        script.add("chain " + (replace ? "--replace " : "") + uri.toASCIIString().replace("%24%7B", "${").replace("%7D", "}"));
+        StringBuilder chain = new StringBuilder("chain " + (replace ? "--replace " : "") + uri.toASCIIString().replace("%24%7B", "${").replace("%7D", "}"));
+        for (String arg : args) {
+            chain.append(" ").append(arg);
+        }
+        script.add(chain.toString());
+        return this;
+    }
+
+    public iPXEBuilder Kernel(URI uri, String ... args) {
+        StringBuilder kernel = new StringBuilder("kernel " + uri.toASCIIString().replace("%24%7B", "${").replace("%7D", "}"));
+        for (String arg : args) {
+            kernel.append(" ").append(arg);
+        }
+        script.add(kernel.toString());
+        return this;
+    }
+
+    public iPXEBuilder Boot() {
+        script.add("boot");
         return this;
     }
 
