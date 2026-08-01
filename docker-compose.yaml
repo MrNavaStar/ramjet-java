@@ -7,11 +7,12 @@ services:
     ports:
       - "11722:11722"
     environment:
-      APP_URL: "http://192.168.1.116:11722"
+      APP_URL: "http://192.168.88.69:11722"
       GIT_REPO: "https://github.com/MrNavaStar/ramjet-java"
       MACHINE_DIR: "example/machines"
       PROFILE_DIR: "example/profiles"
     restart: unless-stopped
     volumes:
       - ./cache:/cache
-      - ./vmlinuz:/vmlinuz
+      - ./vmlinuz-fedora:/vmlinuz
+      - ./archive.cpio:/archive.cpio

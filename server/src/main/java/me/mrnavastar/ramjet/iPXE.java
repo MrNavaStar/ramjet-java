@@ -61,15 +61,18 @@ public final class iPXE {
                         .setPath("/v1/fetch")
                         .addParameter("uri", kernel.toString())
                         .build(),
-                        //"initrd=initrd.magic",
-                        //"root=/dev/ram0",
-                        "init=/bin/inlet",
+                        //"initrd=initrd",
+                        "root=/dev/ram0",
+                        //"rdinit=/bin/init",
                         "ramjet=" + json)
-                //.ForEach(image.manifest().layers(), layer ->
-                //        script.Initrd(new URIBuilder(url)
-                //        .setPath("/v1/fetch")
-                //        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
-                //        .build()))
+/*                    .Initrd(new URIBuilder("/v1/fetch")
+                            .addParameter("uri", "file:///archive.cpio")
+                            .build())*/
+                .ForEach(image.manifest().layers(), layer ->
+                        script.Initrd(new URIBuilder(url)
+                        .setPath("/v1/fetch")
+                        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
+                        .build()))
                 .Initrd(new URIBuilder("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")
                     .build(), "/bin/inlet", "mode=755")

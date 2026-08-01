@@ -111,6 +111,7 @@ public class iPXEBuilder {
         for (String arg : args) {
             kernel.append(" ").append(arg);
         }
+        script.add("imgfree");
         script.add(kernel.toString());
         return this;
     }
