@@ -22,7 +22,7 @@ public class Server {
     public static final String APP_URL = Env.get("APP_URL");
     public static final String GIT_REPO = Env.get("GIT_REPO");
     public static final String GIT_BRANCH = Env.get("GIT_BRANCH", "master");
-    public static final int GIT_POLL_RATE = Integer.parseInt(Env.get("GIT_POLL_RATE", "60"));
+    public static final int GIT_POLL_RATE = Integer.parseInt(Env.get("GIT_POLL_RATE", "120"));
     public static final String MACHINE_DIR = Env.get("MACHINE_DIR", "machines");
     public static final String PROFILE_DIR = Env.get("PROFILE_DIR", "profiles");
 

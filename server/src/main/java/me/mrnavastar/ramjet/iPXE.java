@@ -61,9 +61,10 @@ public final class iPXE {
                         .setPath("/v1/fetch")
                         .addParameter("uri", kernel.toString())
                         .build(),
-                        //"initrd=initrd",
+                        "initrd=initrd",
                         "root=/dev/ram0",
-                        //"rdinit=/bin/init",
+                        "rdinit=/inlet",
+                        "console=ttyAMA0 console=ttyS0",
                         "ramjet=" + json)
 /*                    .Initrd(new URIBuilder("/v1/fetch")
                             .addParameter("uri", "file:///archive.cpio")
@@ -73,9 +74,10 @@ public final class iPXE {
                         .setPath("/v1/fetch")
                         .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
                         .build()))
-                .Initrd(new URIBuilder("/v1/fetch")
+                .Initrd(new URIBuilder(url)
+                    .setPath("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")
-                    .build(), "/bin/inlet", "mode=755")
+                    .build(), "/inlet", "mode=755")
                 .Boot()
             ));
     }
