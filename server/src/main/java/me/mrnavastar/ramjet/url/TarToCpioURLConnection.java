@@ -2,7 +2,7 @@ package me.mrnavastar.ramjet.url;
 
 import lombok.RequiredArgsConstructor;
 import me.mrnavastar.ramjet.ConversionContext;
-import me.mrnavastar.ramjet.OCI;
+import me.mrnavastar.ramjet.oci.OCI;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
 import java.io.IOException;

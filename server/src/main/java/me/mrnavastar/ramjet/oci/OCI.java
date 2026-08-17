@@ -1,4 +1,4 @@
-package me.mrnavastar.ramjet;
+package me.mrnavastar.ramjet.oci;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -9,7 +9,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.ConcurrentHashMap;
 
+import me.mrnavastar.ramjet.ImageConfig;
+import me.mrnavastar.ramjet.util.Http;
 import me.mrnavastar.ramjet.util.Mapper;
 import me.mrnavastar.ramjet.util.VerifyingInputStream;
 import me.mrnavastar.ramjet.util.result.Fate;
@@ -24,21 +27,9 @@ public class OCI {
     }
 
     private static final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+    private static final ConcurrentHashMap<String, String> tokens = new ConcurrentHashMap<>();
 
-    // EXAMPLE: Bearer realm="https://auth.docker.io/token",service="registry.docker.io",scope="repository:library/ubuntu:pull"
-    public static Map<String, String> parseAuthHeader(String header) {
-        Map<String, String> map = new HashMap<>();
 
-        // Remove Quotes, Remove "Bearer " prefix & Split key-value pairs
-        String[] parts = header.replace("\"", "").substring(header.indexOf(' ') + 1).split(",");
-
-        for (String part : parts) {
-            String[] kv = part.split("=", 2);
-            if (kv.length != 2) continue;
-            map.put(kv[0].trim(), kv[1].trim());
-        }
-        return map;
-    }
 
     private static Fate<String> fetchToken(String authHeader) {
         Map<String, String> parts = parseAuthHeader(authHeader);
@@ -55,11 +46,14 @@ public class OCI {
 
     private static Fate<HttpResponse<InputStream>> getWithAuth(HttpRequest.Builder request) {
         return Fate.of(() -> {
-            HttpResponse<InputStream> response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response = Http.INSTANCE.send(request
+                    .header("Authorization", "Bearer " + tokens.getOrDefault(request))
+                    .build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
 
             if (response.statusCode() == 401)
                 response = fetchToken(response.headers().firstValue("www-authenticate").orElseThrow(() -> new IOException("Missing WWW-Authenticate")))
-                        .map(token -> http.send(request
+                        .map(token -> Http.INSTANCE.send(request
                                         .header("Authorization", "Bearer " + token)
                                         .build(),
                                 HttpResponse.BodyHandlers.ofInputStream())).resolve();
@@ -85,7 +79,10 @@ public class OCI {
                 .GET())
                 .flatMap(response -> {
                     if (response.statusCode() != 200) return new Fate.Err<>(new OCIResolutionException("Blob request failed: " + response.statusCode()));
-                    return new Fate.Ok<>(new VerifyingInputStream(response.body(), descriptor.digest()));
+
+                    return Fate.of(response.headers()
+                            .firstValue("Content-Length"))
+                            .map(size -> new VerifyingInputStream(response.body(), descriptor.digest(), Long.parseLong(size)));
                 });
     }
 

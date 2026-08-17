@@ -5,6 +5,7 @@ import lombok.Cleanup;
 import me.mrnavastar.ramjet.url.TarToCpioURLConnection;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.TeeInputStream;
+import org.eclipse.jgit.util.io.TeeOutputStream;
 
 import java.io.*;
 import java.net.URI;
@@ -28,6 +29,8 @@ public class Cache {
     }
 
     public static void resolveUri(URI uri, Context ctx) throws Exception {
+        System.out.println(uri);
+
         String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(uri.toString().getBytes(StandardCharsets.UTF_8)));
         File file = CACHE_ROOT.resolve(digest.substring(0, 2)).resolve(digest.substring(2, 4)).resolve(digest).toFile();
 
@@ -36,18 +39,25 @@ public class Cache {
             return;
         }
 
+        System.out.println("here");
+
         @Cleanup InputStream source = switch (uri.getScheme()) {
             case "http", "https", "file" -> connectUri(uri, ctx);
             case "tarToCpio" -> new TarToCpioURLConnection(uri).getInputStream();
             default -> throw new IllegalStateException("Unexpected value: " + uri.getScheme());
         };
 
+        System.out.println("here1");
+
         File tmp = new File(file.getAbsolutePath() + ".part");
         tmp.getParentFile().mkdirs();
 
+        System.out.println("Here2");
+
         boolean shouldCache = !uri.getScheme().equals("file");
-        @Cleanup InputStream in = shouldCache ? new TeeInputStream(source, new FileOutputStream(tmp)) : source;
-        IOUtils.copy(in, ctx.res().getOutputStream());
+
+        @Cleanup OutputStream out = shouldCache ? new TeeOutputStream(new FileOutputStream(tmp), ctx.res().getOutputStream()) : ctx.res().getOutputStream();
+        System.out.printf("copied bytes: %d\n", IOUtils.copyLarge(source, out));
 
         if (shouldCache) Files.move(
             tmp.toPath(),

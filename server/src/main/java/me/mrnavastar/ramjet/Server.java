@@ -2,16 +2,15 @@ package me.mrnavastar.ramjet;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
-import io.javalin.http.staticfiles.Location;
 import me.mrnavastar.ramjet.config.Env;
 import me.mrnavastar.ramjet.config.GitConfig;
 import me.mrnavastar.ramjet.config.LuaConfig;
+import me.mrnavastar.ramjet.oci.OCI;
 import me.mrnavastar.ramjet.util.FateMap;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -79,13 +78,15 @@ public class Server {
             config.routes.exception(Exception.class, (e, ctx) -> {
                 ctx.status(500);
                 ctx.result(e.toString());
+                logger.error(e.toString());
             });
 
             // Pixiecore Compat
             config.routes.get("/v1/boot", ctx ->
                     ctx.result(String.format("{ \"ipxe_script\": \"%s\" }", iPXE.idle(APP_URL, false, 0).resolve())));
 
-            config.routes.get("/v1/idle", ctx -> ctx.result(iPXE.idle(APP_URL, false, 0).resolve()));
+            config.routes.get("/v1/idle", ctx ->
+                    ctx.result(iPXE.idle(APP_URL, false, 0).resolve()));
 
             config.routes.get("/v1/idle/{uuid}", ctx -> {
                 Map<String, String> params = ctx.queryParamMap().entrySet().stream()
@@ -93,7 +94,8 @@ public class Server {
                 ctx.result(idle(ctx.pathParam("uuid"), params).resolve());
             });
 
-            config.routes.get("/v1/fetch", ctx -> Cache.resolveUri(URI.create(getQueryParam(ctx, "uri")), ctx));
+            config.routes.get("/v1/fetch", ctx ->
+                    Cache.resolveUri(URI.create(getQueryParam(ctx, "uri")), ctx));
 
         }).start(11722);
     }

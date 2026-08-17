@@ -1,6 +1,7 @@
 package me.mrnavastar.ramjet;
 
 import lombok.experimental.UtilityClass;
+import me.mrnavastar.ramjet.oci.OCI;
 import me.mrnavastar.ramjet.util.Mapper;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
