@@ -1,5 +1,6 @@
 package me.mrnavastar.ramjet.oci;
 
+import lombok.extern.slf4j.Slf4j;
 import me.mrnavastar.ramjet.util.Http;
 import me.mrnavastar.ramjet.util.Mapper;
 import me.mrnavastar.ramjet.util.result.Fate;
@@ -15,11 +16,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public class Auth {
 
     private static final ConcurrentHashMap<String, CompletableFuture<Token>> tokens = new ConcurrentHashMap<>();
 
-    private record Token(
+    public record Token(
             String token,
             long expiresAt
     ) {
@@ -37,6 +39,7 @@ public class Auth {
         String[] parts = header.replace("\"", "").substring(header.indexOf(' ') + 1).split(",");
 
         for (String part : parts) {
+            System.out.println(part);
             String[] kv = part.split("=", 2);
             if (kv.length != 2) continue;
             map.put(kv[0].trim(), kv[1].trim());
@@ -44,8 +47,11 @@ public class Auth {
         return map;
     }
 
-    private static Fate<Token> fetchToken(HttpRequest.Builder request) {
-        return Fate.of(() -> Http.INSTANCE.send(request.build(), HttpResponse.BodyHandlers.ofInputStream()))
+    // TODO: If no www-authenticate header is returned, it likely means we do not need auth, so we should handle this case and return a null token
+    private static Fate<Token> fetchToken(String host, String repo) {
+        return Fate.of(() -> Http.INSTANCE.send(
+                HttpRequest.newBuilder(URI.create("https://" + host + "/v2/" + repo)).build(),
+                HttpResponse.BodyHandlers.ofInputStream()))
 
             .flatMap(ping -> Fate.of(ping.headers().firstValue("www-authenticate"))
                     .map(Auth::parseAuthHeader)
@@ -67,29 +73,23 @@ public class Auth {
             });
     }
 
-    public static Fate<CompletableFuture<Token>> getToken(String authHeader) {
-        Map<String, String> parts = parseAuthHeader(authHeader);
+    public static CompletableFuture<Token> getToken(String host, String repo) {
+        var future = new CompletableFuture<Token>();
+        var existing = tokens.putIfAbsent(host, future);
 
-        return Fate.of(() -> {
-            String realm = parts.get("realm");
-            String service = parts.get("service");
-            String scope = parts.get("scope");
+        if (existing != null) {
+            if (existing.isDone() && !Fate.of(() -> existing.get().valid()).orElse(false)) tokens.put(host, future);
+            else return existing;
+        }
 
-            String key = realm + "\n" + service + "\n" + scope;
+        fetchToken(host, repo)
+            .peekErr(e -> {
+                tokens.remove(host);
+                log.warn("failed to fetch oci registry token for: {}\n{}", host, e.toString());
+                e.printStackTrace();
+            })
+            .map(future::complete);
 
-            CompletableFuture<Token> cached = tokens.computeIfAbsent(key, k -> {
-
-
-                CompletableFuture<Token> t = new CompletableFuture<>();
-
-                tokens.put(key, t);
-                t.complete(new Token();
-            });
-            if (cached != null) return cached;
-
-
-
-
-            return t;
-        });
+        return future;
+    }
 }

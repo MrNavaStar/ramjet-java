@@ -1,15 +1,9 @@
 package me.mrnavastar.ramjet.oci;
 
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.concurrent.ConcurrentHashMap;
 
 import me.mrnavastar.ramjet.ImageConfig;
 import me.mrnavastar.ramjet.util.Http;
@@ -17,7 +11,6 @@ import me.mrnavastar.ramjet.util.Mapper;
 import me.mrnavastar.ramjet.util.VerifyingInputStream;
 import me.mrnavastar.ramjet.util.result.Fate;
 
-// TODO: Token Caching
 public class OCI {
 
     public static class OCIResolutionException extends Exception {
@@ -26,57 +19,24 @@ public class OCI {
         }
     }
 
-    private static final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-    private static final ConcurrentHashMap<String, String> tokens = new ConcurrentHashMap<>();
-
-
-
-    private static Fate<String> fetchToken(String authHeader) {
-        Map<String, String> parts = parseAuthHeader(authHeader);
-        return Fate.of(() -> {
-            HttpResponse<String> response = http.send(HttpRequest.newBuilder()
-                            .uri(new URI(parts.get("realm") + "?service=" + URLEncoder.encode(parts.get("service"), StandardCharsets.UTF_8) + "&scope=" + URLEncoder.encode(parts.get("scope"), StandardCharsets.UTF_8)))
-                            .GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() != 200) throw new IOException("Token request failed: " + response.statusCode());
-            return Mapper.INSTANCE.readTree(response.body()).get("token").asText();
-        });
-    }
-
-    private static Fate<HttpResponse<InputStream>> getWithAuth(HttpRequest.Builder request) {
-        return Fate.of(() -> {
-            HttpResponse<InputStream> response = Http.INSTANCE.send(request
-                    .header("Authorization", "Bearer " + tokens.getOrDefault(request))
-                    .build(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-
-            if (response.statusCode() == 401)
-                response = fetchToken(response.headers().firstValue("www-authenticate").orElseThrow(() -> new IOException("Missing WWW-Authenticate")))
-                        .map(token -> Http.INSTANCE.send(request
-                                        .header("Authorization", "Bearer " + token)
-                                        .build(),
-                                HttpResponse.BodyHandlers.ofInputStream())).resolve();
-
-            if (response.statusCode() != 200) throw new IOException("Request failed: " + response.statusCode());
-            return response;
-        });
-    }
-
-    private static Fate<List<Descriptor>> manifests(String host, String repository, String tag) {
-        return getWithAuth(HttpRequest.newBuilder()
-                .uri(URI.create("https://" + host + "/v2/" + repository + "/manifests/" + tag))
-                .header("Accept", "application/vnd.oci.image.manifest.v1+json").GET())
+    private static Fate<List<Descriptor>> manifests(String host, String repo, String tag) {
+        return Fate.of(() -> Http.INSTANCE.send(HttpRequest.newBuilder()
+                .uri(URI.create("https://" + host + "/v2/" + repo + "/manifests/" + tag))
+                .header("Authorization", "Bearer " + Auth.getToken(host, repo).get())
+                .header("Accept", "application/vnd.oci.image.manifest.v1+json")
+                .GET().build(), HttpResponse.BodyHandlers.ofInputStream()))
                 .flatMap(response -> {
-                    if (response.statusCode() != 200) return new Fate.Err<>(new OCIResolutionException("Manifest request failed: " + response.statusCode()));
+                    if (response.statusCode() != 200)
+                        return new Fate.Err<>(new OCIResolutionException("Manifest request failed: " + response.statusCode()));
                     return new Fate.Ok<>(Mapper.INSTANCE.readValue(response.body(), ManifestList.class).manifests());
                 });
     }
 
-    public static Fate<VerifyingInputStream> blob(String host, String repository, Descriptor descriptor) {
-        return getWithAuth(HttpRequest.newBuilder()
-                .uri(URI.create("https://" + host + "/v2/" + repository + "/blobs/" + descriptor.digest()))
-                .GET())
+    public static Fate<VerifyingInputStream> blob(String host, String repo, Descriptor descriptor) {
+        return Fate.of(() -> Http.INSTANCE.send(HttpRequest.newBuilder()
+                .uri(URI.create("https://" + host + "/v2/" + repo + "/blobs/" + descriptor.digest()))
+                .header("Authorization", "Bearer " + Auth.getToken(host, repo).get())
+                .GET().build(), HttpResponse.BodyHandlers.ofInputStream()))
                 .flatMap(response -> {
                     if (response.statusCode() != 200) return new Fate.Err<>(new OCIResolutionException("Blob request failed: " + response.statusCode()));
 

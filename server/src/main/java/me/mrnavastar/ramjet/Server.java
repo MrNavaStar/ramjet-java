@@ -2,6 +2,8 @@ package me.mrnavastar.ramjet;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import me.mrnavastar.ramjet.config.Env;
 import me.mrnavastar.ramjet.config.GitConfig;
 import me.mrnavastar.ramjet.config.LuaConfig;
@@ -16,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class Server {
 
     public static final String APP_URL = Env.get("APP_URL");
@@ -24,8 +27,6 @@ public class Server {
     public static final int GIT_POLL_RATE = Integer.parseInt(Env.get("GIT_POLL_RATE", "120"));
     public static final String MACHINE_DIR = Env.get("MACHINE_DIR", "machines");
     public static final String PROFILE_DIR = Env.get("PROFILE_DIR", "profiles");
-
-    private static final Logger logger = LoggerFactory.getLogger(Server.class);
 
     private static final FateMap<String, FateMap<Object, Object>> machines = new FateMap<>(new ConcurrentHashMap<>());
     private static final FateMap<String, LuaConfig> profiles = new FateMap<>(new ConcurrentHashMap<>());
@@ -41,7 +42,7 @@ public class Server {
                 .flatMap(kernelUri -> machine.get("arch").cast(String.class)
                 .flatMap(arch -> OCI.resolveImage(URI.create(imageUri), arch).map(image -> iPXE.boot(image, URI.create(kernelUri), APP_URL)))))))
                 .peekErr(err -> {
-                    logger.warn("UUID: {} wants to boot. Stopped by: {}", uuid, err.toString());
+                    log.warn("UUID: {} wants to boot. Stopped by: {}", uuid, err.toString());
                     err.printStackTrace();
                 })
                 .orElse(iPXE.idle(APP_URL, false, 10));
@@ -59,7 +60,7 @@ public class Server {
             GitConfig.listScripts(MACHINE_DIR)
                     .forEach(file -> new LuaConfig(file).resolve()
                             .flatMap(results -> results.get("uuid").cast(String.class).map(uuid -> {
-                                logger.info("Loaded Machine Config: {}", uuid);
+                                log.info("Loaded Machine Config: {}", uuid);
                                 return machines.put(uuid, results);
                             })));
 
@@ -67,7 +68,7 @@ public class Server {
                     .forEach(file -> {
                         var profile = file.getName().replace(".lua", "");
                         profiles.put(profile, new LuaConfig(file));
-                        logger.info("Loaded Profile: {}", profile);
+                        log.info("Loaded Profile: {}", profile);
                     });
         });
 
@@ -78,7 +79,7 @@ public class Server {
             config.routes.exception(Exception.class, (e, ctx) -> {
                 ctx.status(500);
                 ctx.result(e.toString());
-                logger.error(e.toString());
+                log.error(e.toString());
             });
 
             // Pixiecore Compat
