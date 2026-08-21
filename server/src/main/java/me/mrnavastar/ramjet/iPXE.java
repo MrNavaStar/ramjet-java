@@ -1,5 +1,7 @@
 package me.mrnavastar.ramjet;
 
+import land.oras.ContainerRef;
+import land.oras.Manifest;
 import lombok.experimental.UtilityClass;
 import me.mrnavastar.ramjet.oci.OCI;
 import me.mrnavastar.ramjet.util.Mapper;
@@ -54,10 +56,9 @@ public final class iPXE {
         );
     }
 
-    public static Fate<String> boot(OCI.Image image, URI kernel, String url) {
-        return Fate.of(() -> Mapper.INSTANCE.writeValueAsString(image.config()))
-            .map(config -> Base64.getEncoder().encodeToString(config.getBytes(StandardCharsets.UTF_8)))
-            .flatMap(json -> iPXEBuilder.create(script -> script
+    public static Fate<String> boot(ContainerRef image, Manifest manifest, URI kernel, String url) {
+        return Fate.of(() -> Base64.getEncoder().encodeToString(manifest.getConfig().getDataBytes()))
+            .flatMap(config -> iPXEBuilder.create(script -> script
                 .Kernel(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", kernel.toString())
@@ -66,14 +67,15 @@ public final class iPXE {
                         "root=/dev/ram0",
                         "rdinit=/inlet",
                         "console=ttyAMA0 console=ttyS0",
-                        "ramjet=" + json)
+                        "ramjet=" + config)
 /*                    .Initrd(new URIBuilder("/v1/fetch")
                             .addParameter("uri", "file:///archive.cpio")
                             .build())*/
-                .ForEach(image.manifest().layers(), layer ->
+                .ForEach(manifest.getLayers(), layer ->
                         script.Initrd(new URIBuilder(url)
                         .setPath("/v1/fetch")
-                        .addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
+                        .addParameter("uri", "blob://" + image.withDigest(layer.getDigest()))
+                        //.addParameter("uri", String.format("tarToCpio://%s/v2/%s/blobs/%s", image.uri().getHost(), image.repo(), layer.digest()))
                         .build()))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/fetch")

@@ -2,6 +2,8 @@ package me.mrnavastar.ramjet;
 
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import land.oras.*;
+import land.oras.utils.Const;
 import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
 import me.mrnavastar.ramjet.config.Env;
@@ -31,7 +33,7 @@ public class Server {
     private static final FateMap<String, FateMap<Object, Object>> machines = new FateMap<>(new ConcurrentHashMap<>());
     private static final FateMap<String, LuaConfig> profiles = new FateMap<>(new ConcurrentHashMap<>());
 
-    public static Fate<String> idle(String uuid, Map<String, String> meta) {
+    public static Fate<String> getBootScript(String uuid, Map<String, String> meta) {
         return machines.get(uuid)
                 .flatMap(machine -> machine.get("profile")
                 .cast(String.class)
@@ -40,12 +42,22 @@ public class Server {
                 .flatMap(results -> results.get("image").cast(String.class)
                 .flatMap(imageUri -> results.get("kernel").cast(String.class)
                 .flatMap(kernelUri -> machine.get("arch").cast(String.class)
-                .flatMap(arch -> OCI.resolveImage(URI.create(imageUri), arch).map(image -> iPXE.boot(image, URI.create(kernelUri), APP_URL)))))))
-                .peekErr(err -> {
-                    log.warn("UUID: {} wants to boot. Stopped by: {}", uuid, err.toString());
-                    err.printStackTrace();
-                })
-                .orElse(iPXE.idle(APP_URL, false, 10));
+                .flatMap(arch -> {
+
+                    URI uri = URI.create(imageUri);
+
+                    Registry registry = Registry.builder().insecure().build();
+
+                    ContainerRef image = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 1));
+
+                    ManifestDescriptor d = registry.getIndex(image).filter(Platform.of(Const.PLATFORM_LINUX, arch)).getFirst();
+
+
+                    Manifest manifest = registry.getManifest(image.withDigest(d.getDigest()));
+                    
+
+                    return iPXE.boot(image, manifest, URI.create(kernelUri), APP_URL);
+                })))));
     }
 
     public static String getQueryParam(Context ctx, String param) throws NoSuchElementException {
@@ -92,7 +104,9 @@ public class Server {
             config.routes.get("/v1/idle/{uuid}", ctx -> {
                 Map<String, String> params = ctx.queryParamMap().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, value -> value.getValue().getFirst()));
-                ctx.result(idle(ctx.pathParam("uuid"), params).resolve());
+
+                ctx.result(getBootScript(ctx.pathParam("uuid"), params)
+                        .or(() -> iPXE.idle(APP_URL, false, 10).resolve()).resolve());
             });
 
             config.routes.get("/v1/fetch", ctx ->

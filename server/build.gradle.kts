@@ -56,6 +56,8 @@ dependencies {
     implementation("commons-codec:commons-codec:1.22.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.6.1")
 
+    implementation("land.oras:oras-java-sdk:0.8.2")
+
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.0")
 
