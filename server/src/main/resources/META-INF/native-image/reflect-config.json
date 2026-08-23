@@ -157,6 +157,71 @@
     "methods":[{"name":"<init>","parameterTypes":[] }]
   },
   {
+    "name": "com.github.benmanes.caffeine.cache.SSSMSA",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name": "com.github.benmanes.caffeine.cache.SSMS",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true,
+    "methods":[{"name":"<init>","parameterTypes":[] }]
+  },
+  {
+    "name": "land.oras.auth.HttpClient$TokenResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.Index",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.ManifestDescriptor",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.Manifest",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.Config",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.Layer",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
+    "name": "land.oras.Platform",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields":true,
+    "allDeclaredMethods":true,
+    "allPublicMethods":true
+  },
+  {
     "name":"me.mrnavastar.ramjet.OCI$Manifest",
     "allDeclaredConstructors": true,
     "allDeclaredFields":true,

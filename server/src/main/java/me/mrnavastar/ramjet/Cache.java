@@ -3,6 +3,7 @@ package me.mrnavastar.ramjet;
 import io.javalin.http.Context;
 import land.oras.ContainerRef;
 import land.oras.Registry;
+import land.oras.auth.BearerTokenProvider;
 import lombok.Cleanup;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -34,8 +35,8 @@ public class Cache {
     }
 
     private static Fate<InputStream> connectBlob(URI uri) {
-        Registry registry = Registry.builder().insecure().build();
-        ContainerRef ref = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 1));
+        Registry registry = Registry.builder().withAuthProvider(new BearerTokenProvider()).build();
+        ContainerRef ref = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 3));
 
         return Fate.of(() -> registry.getBlobStream(ref))
                 .map(GZIPInputStream::new).map(TarArchiveInputStream::new)
@@ -71,8 +72,10 @@ public class Cache {
 
             boolean shouldCache = !uri.getScheme().equals("file");
 
-            @Cleanup OutputStream out = shouldCache ? new TeeOutputStream(new FileOutputStream(tmp), ctx.res().getOutputStream()) : ctx.res().getOutputStream();
+            OutputStream out = shouldCache ? new TeeOutputStream(new FileOutputStream(tmp), ctx.res().getOutputStream()) : ctx.res().getOutputStream();
             System.out.printf("copied bytes: %d\n", IOUtils.copyLarge(in, out));
+            in.close();
+            out.close();
 
             if (shouldCache) Files.move(
                     tmp.toPath(),

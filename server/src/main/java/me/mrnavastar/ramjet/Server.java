@@ -3,17 +3,14 @@ package me.mrnavastar.ramjet;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import land.oras.*;
+import land.oras.auth.BearerTokenProvider;
 import land.oras.utils.Const;
-import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
 import me.mrnavastar.ramjet.config.Env;
 import me.mrnavastar.ramjet.config.GitConfig;
 import me.mrnavastar.ramjet.config.LuaConfig;
-import me.mrnavastar.ramjet.oci.OCI;
 import me.mrnavastar.ramjet.util.FateMap;
 import me.mrnavastar.ramjet.util.result.Fate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.*;
@@ -46,17 +43,15 @@ public class Server {
 
                     URI uri = URI.create(imageUri);
 
-                    Registry registry = Registry.builder().insecure().build();
+                    Registry registry = Registry.builder().withAuthProvider(new BearerTokenProvider()).build();
 
-                    ContainerRef image = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 1));
+                    ContainerRef image = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 3));
 
                     ManifestDescriptor d = registry.getIndex(image).filter(Platform.of(Const.PLATFORM_LINUX, arch)).getFirst();
 
-
                     Manifest manifest = registry.getManifest(image.withDigest(d.getDigest()));
-                    
 
-                    return iPXE.boot(image, manifest, URI.create(kernelUri), APP_URL);
+                    return iPXE.boot(registry, image, manifest, URI.create(kernelUri), APP_URL);
                 })))));
     }
 
@@ -92,6 +87,7 @@ public class Server {
                 ctx.status(500);
                 ctx.result(e.toString());
                 log.error(e.toString());
+                e.printStackTrace();
             });
 
             // Pixiecore Compat
@@ -105,8 +101,8 @@ public class Server {
                 Map<String, String> params = ctx.queryParamMap().entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, value -> value.getValue().getFirst()));
 
-                ctx.result(getBootScript(ctx.pathParam("uuid"), params)
-                        .or(() -> iPXE.idle(APP_URL, false, 10).resolve()).resolve());
+                ctx.result(getBootScript(ctx.pathParam("uuid"), params).resolve());
+                        //.or(() -> iPXE.idle(APP_URL, false, 10).resolve()).resolve());
             });
 
             config.routes.get("/v1/fetch", ctx ->
