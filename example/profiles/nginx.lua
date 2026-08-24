@@ -1,5 +1,5 @@
 return {
     --image = "oci://docker.io/library/nginx:trixie-perl",
-    image = "oci://ghcr.io/freemkv/autorip:latest";
+    image = "oci://docker.io/grafana/grafana:nightly";
     kernel = "file:///vmlinuz"
 }
