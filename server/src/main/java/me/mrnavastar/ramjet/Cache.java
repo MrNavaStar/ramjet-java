@@ -4,7 +4,6 @@ import io.javalin.http.Context;
 import land.oras.ContainerRef;
 import land.oras.Registry;
 import land.oras.auth.BearerTokenProvider;
-import lombok.Cleanup;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
@@ -47,6 +46,8 @@ public class Cache {
         System.out.println(uri);
 
         String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(uri.toString().getBytes(StandardCharsets.UTF_8)));
+        System.out.println(digest);
+
         File file = CACHE_ROOT.resolve(digest.substring(0, 2)).resolve(digest.substring(2, 4)).resolve(digest).toFile();
 
         if (file.exists()) {
@@ -54,35 +55,27 @@ public class Cache {
             return;
         }
 
-        System.out.println("here");
-
         Fate<InputStream> source = switch (uri.getScheme()) {
             case "http", "https", "file" -> connectUri(uri, ctx);
             case "blob" -> connectBlob(uri);
             default -> throw new IllegalStateException("Unexpected value: " + uri.getScheme());
         };
 
-        System.out.println("here1");
-
         source.map(in -> {
-            File tmp = new File(file.getAbsolutePath() + ".part");
-            tmp.getParentFile().mkdirs();
+            if (uri.getScheme().equals("file")) IOUtils.copyLarge(in, ctx.res().getOutputStream());
+            else {
+                File tmp = new File(file.getAbsolutePath() + ".part");
+                tmp.getParentFile().mkdirs();
+                OutputStream tmpStream = new FileOutputStream(tmp);
+                IOUtils.copyLarge(in, new TeeOutputStream(tmpStream, ctx.res().getOutputStream()));
+                tmpStream.close();
 
-            System.out.println("Here2");
-
-            boolean shouldCache = !uri.getScheme().equals("file");
-
-            OutputStream out = shouldCache ? new TeeOutputStream(new FileOutputStream(tmp), ctx.res().getOutputStream()) : ctx.res().getOutputStream();
-            System.out.printf("copied bytes: %d\n", IOUtils.copyLarge(in, out));
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            }
             in.close();
-            out.close();
 
-            if (shouldCache) Files.move(
-                    tmp.toPath(),
-                    file.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                    StandardCopyOption.ATOMIC_MOVE
-            );
+            System.out.println("done");
+
             return null;
         });
     }
