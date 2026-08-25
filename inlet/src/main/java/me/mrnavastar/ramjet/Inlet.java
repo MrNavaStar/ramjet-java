@@ -18,7 +18,7 @@ public class Inlet {
     private static void debugShell() throws IOException, InterruptedException {
         if (!new File("/busybox").exists()) return;
 
-        log.warning("Failed to start image! Dropping you into a debug shell so you can poke around :)");
+        log.info("Dropping you into a debug shell so you can poke around :)");
 
         new File("/debug/bin").mkdirs();
         Files.move(Path.of("/busybox"), Path.of("/debug/busybox"));
@@ -48,6 +48,7 @@ public class Inlet {
             workload.start().waitFor();
         } catch (Exception e) {
             e.printStackTrace();
+            log.severe("Failed to start image!");
 
             if (isDebugMode()) debugShell();
         }

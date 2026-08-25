@@ -5,6 +5,7 @@ import land.oras.Manifest;
 import land.oras.Registry;
 import lombok.experimental.UtilityClass;
 import me.mrnavastar.ramjet.util.Mapper;
+import me.mrnavastar.ramjet.util.OCI;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.hc.core5.net.URIBuilder;
@@ -12,6 +13,7 @@ import org.apache.hc.core5.net.URIBuilder;
 import java.net.URI;
 import java.util.List;
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @UtilityClass
 public final class iPXE {
@@ -77,8 +79,10 @@ public final class iPXE {
     }
 
     public static Fate<String> boot(Registry registry, ContainerRef image, Manifest manifest, URI kernel, String url) {
+        AtomicInteger layerIndex = new AtomicInteger();
         return getConfig(registry.getBlob(image.withDigest(manifest.getConfig().getDigest())))
             .flatMap(config -> iPXEBuilder.create(script -> script
+                .Clear()
                 .Kernel(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", kernel.toString())
@@ -89,14 +93,11 @@ public final class iPXE {
                         "console=ttyAMA0 console=ttyS0",
                         "ramjet_debug=true",
                         getConfigArgs(config))
-/*                    .Initrd(new URIBuilder("/v1/fetch")
-                            .addParameter("uri", "file:///archive.cpio")
-                            .build())*/
                 .ForEach(manifest.getLayers(), layer ->
                         script.Initrd(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", "blob://" + image.withDigest(layer.getDigest()))
-                        .build()))
+                        .build(), String.format("/layers/%02d-%s%s", layerIndex.getAndIncrement(), layer.getDigest(), OCI.getBlobFileExtension(layer.getMediaType()))))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")
