@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <limits.h>
 
 static void rm_rf(const char *path);
 

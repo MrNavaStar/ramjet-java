@@ -3,4 +3,6 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 )
 
 add_executable(system ${SOURCES})
-target_link_libraries(system PRIVATE archive)
+
+find_package(LibArchive REQUIRED)
+target_link_libraries(system PRIVATE ${LIBARCHIVE_STATIC})

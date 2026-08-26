@@ -4,6 +4,6 @@ RUN apk add --no-cache \
     build-base \
     cmake \
     ninja \
-    zlib-dev
+    libarchive-static
 
 WORKDIR /src
