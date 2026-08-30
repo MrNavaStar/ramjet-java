@@ -1,3 +1,4 @@
+#include "include/runtime.h"
 #include "include/layers.h"
 #include "../common/include/exec.h"
 #include "../common/include/dotenv.h"
@@ -17,7 +18,7 @@ static void mount_fs(const char *root, const char *target, const char *type, con
     }
 }
 
-static int start_image() {
+int start_image() {
     if (env_load("/layers", true) != 0) {
         fprintf(stderr, "runtime: failed to load image settings");
         return -1;

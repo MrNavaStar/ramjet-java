@@ -161,7 +161,7 @@ error:
     return -1;
 }
 
-static int extract_embedded_layers(const char *root) {
+int extract_embedded_layers(const char *root) {
     DIR *dir = opendir(EMBEDDED_LAYERS_DIR);
     if (!dir) {
         perror(EMBEDDED_LAYERS_DIR);

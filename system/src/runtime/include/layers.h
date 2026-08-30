@@ -4,4 +4,4 @@
 #define EMBEDDED_LAYERS_DIR "/layers/"
 #define ROOT_DIR "/root/"
 
-static int extract_embedded_layers(const char *root);
+int extract_embedded_layers(const char *root);

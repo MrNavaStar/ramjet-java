@@ -13,6 +13,7 @@ build: image
 		-w /src \
 		$(IMAGE) \
 		sh -c 'cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static" && cmake --build build -j$$(nproc)'
+	ls -lh build/src/system
 
 clean:
 	rm -rf $(BUILD_DIR)
