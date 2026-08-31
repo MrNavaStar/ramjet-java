@@ -1,19 +1,22 @@
 BUILD_DIR := build
-IMAGE := static-c-builder
+VCPKG_ROOT ?= $(CURDIR)/vcpkg
+CMAKE ?= cmake
+CMAKE_ARGS := -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_TOOLCHAIN_FILE="$(VCPKG_ROOT)/scripts/buildsystems/vcpkg.cmake" \
+	-DVCPKG_TARGET_TRIPLET=x64-linux
 
-.PHONY: build clean
+.PHONY: build clean configure
 
-image:
-	docker build -t $(IMAGE) .
+configure:
+	$(CMAKE) -S . -B $(BUILD_DIR) $(CMAKE_ARGS)
 
-build: image
-	docker run --rm \
-		--user "$$(id -u):$$(id -g)" \
-		-v "$$(pwd)":/src \
-		-w /src \
-		$(IMAGE) \
-		sh -c 'cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static" && cmake --build build -j$$(nproc)'
-	ls -lh build/src/system
+build: configure
+	$(CMAKE) --build $(BUILD_DIR) --parallel $$(nproc)
+	ls -lh $(BUILD_DIR)/system
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+# Native, direnv-first workflow:
+#   direnv allow
+#   make build
