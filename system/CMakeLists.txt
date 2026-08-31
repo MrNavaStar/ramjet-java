@@ -12,13 +12,19 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
 add_executable(system ${SOURCES})
 
 target_compile_options(system PRIVATE
+    -O3
+    -Os
     -ffunction-sections
     -fdata-sections
+    -fno-unwind-tables
+    -fno-asynchronous-unwind-tables
 )
 
 target_link_options(system PRIVATE
     -static
+    -s
     -Wl,--gc-sections
+    -flto
 )
 
 find_package(ZLIB REQUIRED)
