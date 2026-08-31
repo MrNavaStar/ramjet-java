@@ -20,7 +20,7 @@ static void mount_fs(const char *root, const char *target, const char *type, con
 
 int start_image() {
     if (env_load("/layers", true) != 0) {
-        fprintf(stderr, "runtime: failed to load image settings");
+        fprintf(stderr, "runtime: failed to load image settings\n");
         return -1;
     }
 
@@ -28,11 +28,11 @@ int start_image() {
     const char *env = getenv("RAMJET_IMAGE_ENV");
 
     if (cmd == NULL) {
-        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_CMD environment variable");
+        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_CMD environment variable\n");
         return -1;
     }
     if (env == NULL) {
-        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_ENV environment variable");
+        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_ENV environment variable\n");
         return -1;
     }
 
@@ -40,7 +40,7 @@ int start_image() {
         extract_embedded_layers(ROOT_DIR);
     } else {
         //TODO: ask mgmt service for layers
-        fprintf(stderr, "runtime: failed to find embedded layers");
+        fprintf(stderr, "runtime: failed to find embedded layers\n");
         return -1;
     }
 
