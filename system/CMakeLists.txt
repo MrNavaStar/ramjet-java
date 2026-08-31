@@ -1,22 +1,27 @@
 cmake_minimum_required(VERSION 4.2)
-include(ExternalProject)
-include(CheckFunctionExists)
 
 project(system C)
 
 set(CMAKE_C_STANDARD 11)
-set(BUILD_SHARED_LIBS OFF)
-set(CMAKE_C_COMPILER gcc)
-set(CMAKE_EXE_LINKER_FLAGS "-static")
-set(CMAKE_SHARED_LINKER_FLAGS "-static")
 
-add_compile_options(
-        -ffunction-sections
-        -fdata-sections
+find_package(LibArchive CONFIG REQUIRED)
+
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
 )
 
-add_link_options(
-        -Wl,--gc-sections
+add_executable(system ${SOURCES})
+
+target_compile_options(system PRIVATE
+    -ffunction-sections
+    -fdata-sections
 )
 
-add_subdirectory(src)
+target_link_options(system PRIVATE
+    -static
+    -Wl,--gc-sections
+)
+
+target_link_libraries(system PRIVATE
+    LibArchive::LibArchive
+)

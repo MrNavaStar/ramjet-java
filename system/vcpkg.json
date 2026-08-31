@@ -1,0 +1,12 @@
+{
+  "name": "system",
+  "version-string": "1.0.0",
+  "dependencies": [
+    {
+      "name": "libarchive",
+      "features": [
+        "zstd"
+      ]
+    }
+  ]
+}
