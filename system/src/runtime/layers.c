@@ -98,13 +98,6 @@ static int extract_layer_fd(const int fd, const char *root) {
     archive_read_support_filter_zstd(in);
     archive_read_support_format_tar(in);
 
-    if (archive_read_set_options(in, "hdrcharset=BINARY") != ARCHIVE_OK) {
-        fprintf(stderr, "options: %s\n", archive_error_string(in));
-        archive_read_free(in);
-        archive_write_free(out);
-        return -1;
-    }
-
     archive_write_disk_set_options(
         out,
         ARCHIVE_EXTRACT_TIME |
@@ -124,12 +117,13 @@ static int extract_layer_fd(const int fd, const char *root) {
     while (1) {
         const int r = archive_read_next_header(in, &entry);
         if (r == ARCHIVE_EOF) break;
-        if (r != ARCHIVE_OK) {
+        if (r != ARCHIVE_OK && r != ARCHIVE_WARN) {
             fprintf(stderr, "header: %s\n", archive_error_string(in));
             goto error;
         }
+        if (r == ARCHIVE_WARN) fprintf(stderr, "header warning: %s\n", archive_error_string(in));
 
-        const char *name = archive_entry_pathname_utf8(entry);
+        const char *name = archive_entry_pathname(entry);
 
         /* Apply whiteouts instead of extracting them */
         if (handle_whiteout(root, name)) continue;
@@ -143,16 +137,16 @@ static int extract_layer_fd(const int fd, const char *root) {
             goto error;
         }
 
-        archive_entry_set_pathname_utf8(entry, path);
+        archive_entry_set_pathname(entry, path);
 
-        const char *hardlink = archive_entry_hardlink_utf8(entry);
+        const char *hardlink = archive_entry_hardlink(entry);
         char hardlink_path[PATH_MAX];
         if (hardlink != NULL) {
             if (snprintf(hardlink_path, sizeof(hardlink_path), "%s/%s", root, hardlink) >= (int)sizeof(hardlink_path)) {
                 fprintf(stderr, "hard-link path too long: %s\n", hardlink);
                 goto error;
             }
-            archive_entry_set_hardlink_utf8(entry, hardlink_path);
+            archive_entry_set_hardlink(entry, hardlink_path);
         }
 
         if (archive_write_header(out, entry) != ARCHIVE_OK) {
