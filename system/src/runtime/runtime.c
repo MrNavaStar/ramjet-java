@@ -35,7 +35,10 @@ int start_image() {
     }
 
     if (access(EMBEDDED_LAYERS_DIR, F_OK) == 0) {
-        extract_embedded_layers(ROOT_DIR);
+        if (extract_embedded_layers(ROOT_DIR) != 0) {
+            fprintf(stderr, "runtime: failed to extract OCI layers\n");
+            return 1;
+        }
     } else {
         //TODO: ask mgmt service for layers
         fprintf(stderr, "runtime: failed to find embedded layers\n");

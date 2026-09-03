@@ -138,6 +138,16 @@ static int extract_layer_fd(const int fd, const char *root) {
 
         archive_entry_set_pathname(entry, path);
 
+        const char *hardlink = archive_entry_hardlink_utf8(entry);
+        char hardlink_path[PATH_MAX];
+        if (hardlink != NULL) {
+            if (snprintf(hardlink_path, sizeof(hardlink_path), "%s/%s", root, hardlink) >= (int)sizeof(hardlink_path)) {
+                fprintf(stderr, "hard-link path too long: %s\n", hardlink);
+                goto error;
+            }
+            archive_entry_set_hardlink_utf8(entry, hardlink_path);
+        }
+
         if (archive_write_header(out, entry) != ARCHIVE_OK) {
             fprintf(stderr, "header write: %s\n", archive_error_string(out));
             goto error;
@@ -188,8 +198,13 @@ int extract_embedded_layers(const char *root) {
             continue;
         }
 
-        extract_layer_fd(fd, root);
+        const int result = extract_layer_fd(fd, root);
         close(fd);
+
+        if (result != 0) {
+            closedir(dir);
+            return -1;
+        }
 
         if (unlink(filepath) < 0) perror(filepath);
     }
