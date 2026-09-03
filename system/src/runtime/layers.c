@@ -98,13 +98,6 @@ static int extract_layer_fd(const int fd, const char *root) {
     archive_read_support_filter_zstd(in);
     archive_read_support_format_tar(in);
 
-    if (archive_read_set_options(in, "compat-2x") != ARCHIVE_OK) {
-        fprintf(stderr, "options: %s\n", archive_error_string(in));
-        archive_read_free(in);
-        archive_write_free(out);
-        return -1;
-    }
-
     archive_write_disk_set_options(
         out,
         ARCHIVE_EXTRACT_TIME |
@@ -128,8 +121,6 @@ static int extract_layer_fd(const int fd, const char *root) {
             fprintf(stderr, "header: %s\n", archive_error_string(in));
             goto error;
         }
-        if (r == ARCHIVE_WARN) fprintf(stderr, "header warning: %s\n", archive_error_string(in));
-
         const char *name = archive_entry_pathname(entry);
 
         /* Apply whiteouts instead of extracting them */
