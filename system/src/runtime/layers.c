@@ -162,6 +162,8 @@ error:
 }
 
 int extract_embedded_layers(const char *root) {
+    mkdir(root, 0755);
+
     DIR *dir = opendir(EMBEDDED_LAYERS_DIR);
     if (!dir) {
         perror(EMBEDDED_LAYERS_DIR);

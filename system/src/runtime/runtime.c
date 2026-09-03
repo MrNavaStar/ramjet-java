@@ -20,17 +20,12 @@ static void mount_fs(const char *root, const char *target, const char *type, con
 }
 
 int start_image() {
-    oci_config_t config;
     size_t config_size;
-    const char *contents = read_file(EMBEDDED_CONFIG_DIR, &config_size);
-    if (!contents) {
-        fprintf(stderr, "runtime: failed to read OCI config\n");
-        return 1;
-    }
-
+    char *raw_config;
     if (access(EMBEDDED_CONFIG_DIR, F_OK) == 0) {
-        if (oci_config_parse(contents, config_size, &config) != 0) {
-            fprintf(stderr, "runtime: failed to parse OCI config\n");
+        raw_config = read_file(EMBEDDED_CONFIG_DIR, &config_size);
+        if (!raw_config) {
+            fprintf(stderr, "runtime: failed to read OCI config\n");
             return 1;
         }
     } else {
@@ -69,9 +64,13 @@ int start_image() {
         mkdir("/dev/shm", 01777);
         mount_fs(ROOT_DIR, "tmpfs", "dev/shm", "tmpfs", "mode=1777");*/
 
+        oci_config_t config;
+        if (oci_config_parse(raw_config, config_size, &config) != 0) {
+            fprintf(stderr, "runtime: failed to parse OCI config\n");
+            return 1;
+        }
+
         start_process(ROOT_DIR, config.working_dir, *oci_get_exec_cmd(config), config.env);
     }
-
-    oci_config_free(&config);
     return 0;
 }

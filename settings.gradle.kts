@@ -4,4 +4,4 @@ plugins {
 
 rootProject.name = "ramjet"
 
-include(":common", ":server", ":cli", ":inlet")
+include(":common", ":server")

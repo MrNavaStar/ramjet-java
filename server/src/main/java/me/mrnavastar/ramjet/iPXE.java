@@ -2,7 +2,6 @@ package me.mrnavastar.ramjet;
 
 import land.oras.ContainerRef;
 import land.oras.Manifest;
-import land.oras.Registry;
 import lombok.experimental.UtilityClass;
 import me.mrnavastar.ramjet.util.OCI;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
@@ -68,15 +67,15 @@ public final class iPXE {
                         "rdinit=/inlet",
                         "console=ttyAMA0 console=ttyS0",
                         "ramjet_debug=true")
+                .Initrd(new URIBuilder("/v1/fetch")
+                        .setPath("/v1/fetch")
+                        .setParameter("uri", "blob://" + image.withDigest(manifest.getConfig().getDigest()))
+                        .build(), "/embedded/config.json", "mode=600")
                 .ForEach(manifest.getLayers(), layer ->
                         script.Initrd(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", "blob://" + image.withDigest(layer.getDigest()))
                         .build(), String.format("/embedded/layers/%02d-%s%s", layerIndex.getAndIncrement(), layer.getDigest(), OCI.getBlobFileExtension(layer.getMediaType())), "mode=600"))
-                .Initrd(new URIBuilder("/v1/fetch")
-                        .setPath("/v1/fetch")
-                        .setParameter("uri", "blob://" + image.withDigest(manifest.getConfig().getDigest()))
-                        .build(), "/embedded/config.json", "mode=600")
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-inline char *read_file(const char *path, size_t *size_out) {
+static char *read_file(const char *path, size_t *size_out) {
     FILE *file = fopen(path, "rb");
     if (!file) return NULL;
 
