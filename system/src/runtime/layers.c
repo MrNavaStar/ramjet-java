@@ -98,7 +98,7 @@ static int extract_layer_fd(const int fd, const char *root) {
     archive_read_support_filter_zstd(in);
     archive_read_support_format_tar(in);
 
-    if (archive_read_set_options(in, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+    if (archive_read_set_options(in, "hdrcharset=BINARY") != ARCHIVE_OK) {
         fprintf(stderr, "options: %s\n", archive_error_string(in));
         archive_read_free(in);
         archive_write_free(out);
