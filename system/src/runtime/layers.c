@@ -98,6 +98,13 @@ static int extract_layer_fd(const int fd, const char *root) {
     archive_read_support_filter_zstd(in);
     archive_read_support_format_tar(in);
 
+    if (archive_read_set_options(in, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+        fprintf(stderr, "options: %s\n", archive_error_string(in));
+        archive_read_free(in);
+        archive_write_free(out);
+        return -1;
+    }
+
     archive_write_disk_set_options(
         out,
         ARCHIVE_EXTRACT_TIME |
@@ -122,7 +129,7 @@ static int extract_layer_fd(const int fd, const char *root) {
             goto error;
         }
 
-        const char *name = archive_entry_pathname(entry);
+        const char *name = archive_entry_pathname_utf8(entry);
 
         /* Apply whiteouts instead of extracting them */
         if (handle_whiteout(root, name)) continue;
@@ -136,7 +143,7 @@ static int extract_layer_fd(const int fd, const char *root) {
             goto error;
         }
 
-        archive_entry_set_pathname(entry, path);
+        archive_entry_set_pathname_utf8(entry, path);
 
         const char *hardlink = archive_entry_hardlink_utf8(entry);
         char hardlink_path[PATH_MAX];
