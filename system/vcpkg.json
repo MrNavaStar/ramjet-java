@@ -8,6 +8,13 @@
       "features": [
         "zstd"
       ]
+    },
+    {
+      "name": "yyjson",
+      "default-features": false,
+      "features": [
+        "reader"
+      ]
     }
   ]
 }

@@ -51,7 +51,7 @@ public class Server {
 
                     Manifest manifest = registry.getManifest(image.withDigest(d.getDigest()));
 
-                    return iPXE.boot(registry, image, manifest, URI.create(kernelUri), APP_URL);
+                    return iPXE.boot(image, manifest, URI.create(kernelUri), APP_URL);
                 })))));
     }
 

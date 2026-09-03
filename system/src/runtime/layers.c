@@ -173,10 +173,6 @@ int extract_embedded_layers(const char *root) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
         if (entry->d_type != DT_REG && entry->d_type != DT_UNKNOWN) continue;
 
-        const size_t name_len = strlen(entry->d_name);
-        const size_t suffix_len = strlen(LAYERS_SUFFIX);
-        if (name_len < suffix_len || strcmp(entry->d_name + name_len - suffix_len, LAYERS_SUFFIX) != 0) continue;
-
         char filepath[PATH_MAX];
         const int len = snprintf(filepath, sizeof(filepath), "%s/%s", EMBEDDED_LAYERS_DIR, entry->d_name);
         if (len < 0 || (size_t)len >= sizeof(filepath)) {

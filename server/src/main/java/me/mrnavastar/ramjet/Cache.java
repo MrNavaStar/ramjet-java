@@ -37,9 +37,7 @@ public class Cache {
         Registry registry = Registry.builder().withAuthProvider(new BearerTokenProvider()).build();
         ContainerRef ref = ContainerRef.parse(uri.toString().substring(uri.getScheme().length() + 3));
 
-        return Fate.of(() -> registry.getBlobStream(ref))
-                .map(GZIPInputStream::new).map(TarArchiveInputStream::new)
-                .map(in -> new ConversionContext().tarToCpio(in));
+        return Fate.of(() -> registry.getBlobStream(ref));
     }
 
     public static void resolveUri(URI uri, Context ctx) throws Exception {

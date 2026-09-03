@@ -34,3 +34,6 @@ endif()
 
 find_package(LibArchive REQUIRED)
 target_link_libraries(system PRIVATE LibArchive::LibArchive)
+
+find_package(yyjson CONFIG REQUIRED)
+target_link_libraries(system PRIVATE yyjson::yyjson)

@@ -1,7 +1,8 @@
 #include "include/runtime.h"
 #include "include/layers.h"
+#include "include/config.h"
 #include "../common/include/exec.h"
-#include "../common/include/dotenv.h"
+#include "../common/include/files.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -19,21 +20,23 @@ static void mount_fs(const char *root, const char *target, const char *type, con
 }
 
 int start_image() {
-    if (env_load("/layers", true) != 0) {
-        fprintf(stderr, "runtime: failed to load image settings\n");
-        return -1;
+    oci_config_t config;
+    size_t config_size;
+    const char *contents = read_file(EMBEDDED_CONFIG_DIR, &config_size);
+    if (!contents) {
+        fprintf(stderr, "runtime: failed to read OCI config\n");
+        return 1;
     }
 
-    const char *cmd = getenv("RAMJET_IMAGE_CMD");
-    const char *env = getenv("RAMJET_IMAGE_ENV");
-
-    if (cmd == NULL) {
-        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_CMD environment variable\n");
-        return -1;
-    }
-    if (env == NULL) {
-        fprintf(stderr, "runtime: failed to find RAMJET_IMAGE_ENV environment variable\n");
-        return -1;
+    if (access(EMBEDDED_CONFIG_DIR, F_OK) == 0) {
+        if (oci_config_parse(contents, config_size, &config) != 0) {
+            fprintf(stderr, "runtime: failed to parse OCI config\n");
+            return 1;
+        }
+    } else {
+        //TODO: ask mgmt service for config
+        fprintf(stderr, "runtime: failed to find embedded config\n");
+        return 1;
     }
 
     if (access(EMBEDDED_LAYERS_DIR, F_OK) == 0) {
@@ -41,13 +44,13 @@ int start_image() {
     } else {
         //TODO: ask mgmt service for layers
         fprintf(stderr, "runtime: failed to find embedded layers\n");
-        return -1;
+        return 1;
     }
 
     const pid_t pid = fork();
     if (pid < 0) {
         perror("runtime: fork");
-        return -1;
+        return 1;
     }
 
     if (pid == 0) {
@@ -66,8 +69,9 @@ int start_image() {
         mkdir("/dev/shm", 01777);
         mount_fs(ROOT_DIR, "tmpfs", "dev/shm", "tmpfs", "mode=1777");*/
 
-        start_process(ROOT_DIR, cmd, NULL);
+        start_process(ROOT_DIR, config.working_dir, *oci_get_exec_cmd(config), config.env);
     }
 
+    oci_config_free(&config);
     return 0;
 }
