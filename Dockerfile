@@ -1,32 +1,23 @@
 FROM debian:13 AS musl-builder
 
-FROM debian:13 AS musl-builder
-
-ARG CMAKE_VERSION=4.2.0
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     build-essential \
-    direnv \
-    git \
     musl-tools \
-    pkg-config \
     curl \
-    zip \
-    unzip \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL \
-    "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz" \
-    -o /tmp/cmake.tar.gz \
-    && tar -xzf /tmp/cmake.tar.gz -C /opt \
-    && ln -s "/opt/cmake-${CMAKE_VERSION}-linux-x86_64/bin/"* /usr/local/bin/ \
-    && rm /tmp/cmake.tar.gz
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --profile minimal \
+    && . "$HOME/.cargo/env" \
+    && rustup target add x86_64-unknown-linux-musl
 
 WORKDIR /app
-COPY system system
-RUN cd system && direnv allow &&  make clean && make build
+COPY system-rust system-rust
+RUN . "$HOME/.cargo/env" && \
+    cd system-rust && \
+    cargo build --release
 
 FROM ghcr.io/graalvm/native-image-community:25-muslib AS builder
 
@@ -50,7 +41,7 @@ ENV GIT_CONFIG_NOSYSTEM=true
 COPY --from=builder /static /static
 
 COPY --from=musl-builder \
-    /app/system/build/system \
+    /app/system-rust/target/x86_64-unknown-linux-musl/release/init \
     /static/inlet
 
 COPY --from=builder \
