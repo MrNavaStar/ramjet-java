@@ -14,6 +14,7 @@ static void start_process(const char *root, const char *working_dir, const char 
 
     if (root != NULL) chroot(root);
     if (working_dir != NULL) chdir(working_dir);
+    else chdir("/");
 
     const int status = execve(command, argv, env);
     fprintf(stderr, "init: failed to start '%s': %s\n", command, strerror(errno));
