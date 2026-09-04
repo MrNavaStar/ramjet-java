@@ -35,7 +35,7 @@ int start_image() {
     }
 
     if (access(EMBEDDED_LAYERS_DIR, F_OK) == 0) {
-        if (extract_embedded_layers(ROOT_DIR) != 0) {
+        if (layers_extract_dir_to(EMBEDDED_LAYERS_DIR, ROOT_DIR) != 0) {
             fprintf(stderr, "runtime: failed to extract OCI layers\n");
             return 1;
         }

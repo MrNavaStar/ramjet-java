@@ -3,7 +3,6 @@ package me.mrnavastar.ramjet;
 import land.oras.ContainerRef;
 import land.oras.Manifest;
 import lombok.experimental.UtilityClass;
-import me.mrnavastar.ramjet.util.OCI;
 import me.mrnavastar.ramjet.util.iPXEBuilder;
 import me.mrnavastar.ramjet.util.result.Fate;
 import org.apache.hc.core5.net.URIBuilder;
@@ -75,7 +74,7 @@ public final class iPXE {
                         script.Initrd(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", "blob://" + image.withDigest(layer.getDigest()))
-                        .build(), String.format("/embedded/layers/%02d-%s%s", layerIndex.getAndIncrement(), layer.getDigest(), OCI.getBlobFileExtension(layer.getMediaType())), "mode=600"))
+                        .build(), String.format("/embedded/layers/%02d-%s.tar", layerIndex.getAndIncrement(), layer.getDigest()), "mode=600"))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")
