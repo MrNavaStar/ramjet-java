@@ -91,7 +91,7 @@ public class iPXEBuilder {
     public iPXEBuilder Initrd(URI uri, String ... args) {
         StringBuilder initrd = new StringBuilder("initrd " + uri.toASCIIString().replace("%24%7B", "${").replace("%7D", "}"));
         for (String arg : args) {
-            initrd.append(" ").append(arg).append(" mkdir=1");
+            initrd.append(" ").append(arg).append(" mkdir=-1");
         }
         script.add(initrd.toString());
         return this;
