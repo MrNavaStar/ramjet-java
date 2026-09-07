@@ -78,7 +78,7 @@ public final class iPXE {
                         script.Initrd(new URIBuilder(url)
                         .setPath("/v1/fetch")
                         .addParameter("uri", "blob://" + image.withDigest(layer.getDigest()))
-                        .build(), "/image/blobs/sha256/" + layer.getDigest(), "mode=600"))
+                        .build(), "/image/blobs/" + layer.getDigest().replace(":", "/"), "mode=600"))
                 .Initrd(new URIBuilder(url)
                     .setPath("/v1/fetch")
                     .setParameter("uri", "file:///static/inlet")

@@ -74,6 +74,7 @@ pub async fn run(image_dir: impl AsRef<Path>, output_dir: impl AsRef<Path>) -> R
     ocirender::convert_dir(image_dir, output_dir)
         .await
         .context("extract OCI image")?;
+
     mount_kernel_filesystems(output_dir)?;
     chroot(output_dir)?;
     chdir(config.working_dir())?;
