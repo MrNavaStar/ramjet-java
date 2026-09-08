@@ -8,6 +8,7 @@ use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{fork, pause, ForkResult, Pid};
 
 mod config;
+mod mount;
 mod runtime;
 
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);

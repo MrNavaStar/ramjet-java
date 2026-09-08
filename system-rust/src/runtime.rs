@@ -49,7 +49,7 @@ fn mount_kernel_filesystems(root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn exec_configured_process(config: &config::OciConfig) -> Result<()> {
+fn exec_config(config: &config::OciConfig) -> Result<()> {
     let command = config.executable()?;
     let command: Vec<CString> = command
         .iter()
@@ -75,8 +75,10 @@ pub async fn run(image_dir: impl AsRef<Path>, output_dir: impl AsRef<Path>) -> R
         .await
         .context("extract OCI image")?;
 
+    fs::remove_dir_all(image_dir)?;
+
     mount_kernel_filesystems(output_dir)?;
     chroot(output_dir)?;
     chdir(config.working_dir())?;
-    exec_configured_process(&config)
+    exec_config(&config)
 }
