@@ -1,58 +1,64 @@
 ARG KUBERNETES_VERSION=v1.34.1
-ARG CONTAINERD_VERSION=2.3.5
+ARG CRIO_VERSION=1.36.5
 ARG TARGETARCH
 
-FROM alpine:3.22 AS crun
-
-RUN apk add --no-cache crun \
-	&& mkdir -p /runtime/lib /runtime/usr/lib /runtime/usr/bin \
-	&& cp -L /lib/ld-musl-*.so.1 /runtime/lib/ \
-	&& for library in libseccomp.so.2 libcap.so.2 libyajl.so.2 libjson-c.so.5; do \
-		if [ -e "/usr/lib/${library}" ]; then cp -L "/usr/lib/${library}" /runtime/usr/lib/; fi; \
-	done \
-	&& cp /usr/bin/crun /runtime/usr/bin/crun
-
-FROM debian:13-slim AS runtime
-
-ARG CONTAINERD_VERSION
+FROM alpine:3.22 AS crio
+ARG CRIO_VERSION
 ARG TARGETARCH
 
-
-RUN apt-get update \
-	&& apt-get install --no-install-recommends --yes ca-certificates curl \
-	&& rm -rf /var/lib/apt/lists/* \
-	&& mkdir -p /runtime/usr/local/bin /runtime/etc/containerd /runtime/run/containerd \
-		/runtime/var/lib/containerd /runtime/var/lib/kubelet \
-		/runtime/lib64 /runtime/lib/x86_64-linux-gnu /runtime/lib/aarch64-linux-gnu \
+RUN apk add --no-cache ca-certificates curl tar \
+	&& mkdir /crio \
 	&& curl --fail --location --retry 3 \
-		"https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-${TARGETARCH}.tar.gz" \
-		| tar -xz -C /runtime \
+		"https://storage.googleapis.com/cri-o/artifacts/cri-o.${TARGETARCH}.v${CRIO_VERSION}.tar.gz" \
+		| tar -xz -C /crio \
+	&& mkdir -p /runtime/usr/local/bin /runtime/usr/bin /runtime/usr/libexec/crio \
+		/runtime/etc/crio /runtime/etc/cni/net.d /runtime/opt/cni/bin \
+		/runtime/run/crio /runtime/var/lib/containers/storage \
+		/runtime/var/lib/kubelet \
+	&& cp /crio/cri-o/bin/crio /runtime/usr/local/bin/crio \
+	&& cp /crio/cri-o/bin/conmon /runtime/usr/libexec/crio/conmon \
+	&& cp /crio/cri-o/bin/pinns /runtime/usr/libexec/crio/pinns \
+	&& cp /crio/cri-o/bin/crun /runtime/usr/libexec/crio/crun \
+	&& cp /crio/cri-o/bin/crun /runtime/usr/bin/crun \
+	&& cp -a /crio/cri-o/cni-plugins/. /runtime/opt/cni/bin/ \
+	&& cp /crio/cri-o/etc/10-crio.conf /runtime/etc/crio/10-crio.conf \
+	&& cp /crio/cri-o/etc/crio-umount.conf /runtime/etc/crio/crio-umount.conf \
+	&& cp /crio/cri-o/contrib/policy.json /runtime/etc/crio/policy.json \
 	&& printf '%s\n' \
-		'version = 4' \
+		'[crio.image]' \
+		'signature_policy = "/etc/crio/policy.json"' \
 		'' \
-		'[plugins."io.containerd.cri.v1.runtime"]' \
+		'[crio.runtime]' \
+		'default_runtime = "crun"' \
+		'runtime_path = "/usr/libexec/crio/crun"' \
+		'monitor_path = "/usr/libexec/crio/conmon"' \
 		'' \
-		'[plugins."io.containerd.cri.v1.runtime".containerd]' \
-		'default_runtime_name = "crun"' \
-		'' \
-		'[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.crun]' \
-		'runtime_type = "io.containerd.runc.v2"' \
-		'' \
-		'[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.crun.options]' \
-		'BinaryName = "/usr/bin/crun"' \
-		> /runtime/etc/containerd/config.toml \
-	&& case "${TARGETARCH}" in \
-		amd64) \
-			cp /lib64/ld-linux-x86-64.so.2 /runtime/lib64/ \
-			&& cp /lib/x86_64-linux-gnu/libc.so.6 /runtime/lib/x86_64-linux-gnu/;; \
-		arm64) \
-			cp /lib/ld-linux-aarch64.so.1 /runtime/lib/ \
-			&& cp /lib/aarch64-linux-gnu/libc.so.6 /runtime/lib/aarch64-linux-gnu/;; \
-		*) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1;; \
-	esac
+		'[crio.network]' \
+		'network_dir = "/etc/cni/net.d"' \
+		'plugin_dirs = ["/opt/cni/bin"]' \
+		> /runtime/etc/crio/crio.conf
 
-RUN cp /runtime/bin/containerd /runtime/usr/local/bin/containerd \
-	&& cp /runtime/bin/containerd-shim-runc-v2 /runtime/usr/local/bin/containerd-shim-runc-v2
+FROM alpine:3.22 AS nsenter
+
+RUN apk add --no-cache util-linux-misc \
+	&& mkdir -p /runtime/lib /runtime/usr/bin \
+	&& cp -L /lib/ld-musl-*.so.1 /runtime/lib/ \
+	&& cp /usr/bin/nsenter /runtime/usr/bin/nsenter
+
+FROM alpine:3.22 AS nftables
+
+RUN apk add --no-cache nftables \
+	&& mkdir -p /runtime/lib /runtime/usr/bin /runtime/usr/lib /runtime/usr/share \
+	&& cp -L /lib/ld-musl-*.so.1 /runtime/lib/ \
+	&& cp /usr/sbin/nft /runtime/usr/bin/nft \
+	&& for library in \
+		libnftables.so.1 libreadline.so.8 libmnl.so.0 libnftnl.so.11 \
+		libjansson.so.4 libgmp.so.10 libncursesw.so.6; do \
+		cp -L "/usr/lib/${library}" /runtime/usr/lib/; \
+	done \
+	&& if [ -d /usr/share/nftables ]; then \
+		cp -a /usr/share/nftables /runtime/usr/share/; \
+	fi
 
 FROM golang:1.24-alpine AS supervisor
 
@@ -83,18 +89,23 @@ RUN apk add --no-cache ca-certificates curl musl-dev \
 FROM scratch
 
 COPY --from=kubelet /kubelet /usr/local/bin/kubelet
-COPY --from=runtime /runtime/usr/local/bin/containerd /usr/local/bin/containerd
-COPY --from=runtime /runtime/usr/local/bin/containerd-shim-runc-v2 /usr/local/bin/containerd-shim-runc-v2
+COPY --from=crio /runtime/usr/local/bin/crio /usr/local/bin/crio
 COPY --from=supervisor /worker-init /usr/local/bin/worker-init
-COPY --from=runtime /runtime/etc/containerd/config.toml /etc/containerd/config.toml
-COPY --from=runtime /runtime/run /run
-COPY --from=runtime /runtime/var /var
-COPY --from=runtime /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=runtime /runtime/lib64 /lib64
-COPY --from=runtime /runtime/lib /lib
-COPY --from=crun /runtime/lib /lib
-COPY --from=crun /runtime/usr/lib /usr/lib
-COPY --from=crun /runtime/usr/bin/crun /usr/bin/crun
+COPY --from=crio /runtime/usr/libexec/crio /usr/libexec/crio
+COPY --from=crio /runtime/usr/bin/crun /usr/bin/crun
+COPY --from=nsenter /runtime/lib /lib
+COPY --from=nsenter /runtime/usr/bin/nsenter /usr/bin/nsenter
+COPY --from=nftables /runtime/lib /lib
+COPY --from=nftables /runtime/usr/bin/nft /usr/bin/nft
+COPY --from=nftables /runtime/usr/lib /usr/lib
+COPY --from=nftables /runtime/usr/share/nftables /usr/share/nftables
+COPY --from=crio /runtime/etc/crio /etc/crio
+COPY --from=crio /runtime/etc/cni /etc/cni
+COPY --from=crio /runtime/opt/cni /opt/cni
+COPY --from=crio /runtime/run /run
+COPY --from=crio /runtime/var /var
+COPY --from=crio /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 USER 0:0
+ENV PATH="/usr/local/bin:/usr/bin:/usr/libexec/crio:/opt/cni/bin"
 ENTRYPOINT ["/usr/local/bin/worker-init"]

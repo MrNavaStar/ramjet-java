@@ -13,10 +13,10 @@ type processResult struct {
 }
 
 func main() {
-	containerd := exec.Command("/usr/local/bin/containerd", "--config", "/etc/containerd/config.toml")
-	containerd.Stdout = os.Stdout
-	containerd.Stderr = os.Stderr
-	if err := containerd.Start(); err != nil {
+	crio := exec.Command("/usr/local/bin/crio", "--config", "/etc/crio/crio.conf")
+	crio.Stdout = os.Stdout
+	crio.Stderr = os.Stderr
+	if err := crio.Start(); err != nil {
 		panic(err)
 	}
 
@@ -24,7 +24,7 @@ func main() {
 	kubelet.Stdout = os.Stdout
 	kubelet.Stderr = os.Stderr
 	if err := kubelet.Start(); err != nil {
-		_ = containerd.Process.Signal(syscall.SIGTERM)
+		_ = crio.Process.Signal(syscall.SIGTERM)
 		panic(err)
 	}
 
@@ -32,16 +32,16 @@ func main() {
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	results := make(chan processResult, 2)
 	go func() { results <- processResult{kubelet, kubelet.Wait()} }()
-	go func() { results <- processResult{containerd, containerd.Wait()} }()
+	go func() { results <- processResult{crio, crio.Wait()} }()
 
 	select {
 	case <-signals:
 		_ = kubelet.Process.Signal(syscall.SIGTERM)
-		_ = containerd.Process.Signal(syscall.SIGTERM)
+		_ = crio.Process.Signal(syscall.SIGTERM)
 	case result := <-results:
 		_ = result.process
 		_ = kubelet.Process.Signal(syscall.SIGTERM)
-		_ = containerd.Process.Signal(syscall.SIGTERM)
+		_ = crio.Process.Signal(syscall.SIGTERM)
 	}
 
 	<-results
