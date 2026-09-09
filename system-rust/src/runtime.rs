@@ -1,53 +1,12 @@
 use std::ffi::CString;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use nix::errno::Errno;
-use nix::mount::{mount, MsFlags};
 use nix::unistd::{chdir, chroot, execve};
 
 use crate::config;
-
-fn create_mount_point(path: &Path, mode: u32) -> Result<()> {
-    fs::create_dir_all(path).with_context(|| format!("create {}", path.display()))?;
-    fs::set_permissions(path, fs::Permissions::from_mode(mode))
-        .with_context(|| format!("set permissions on {}", path.display()))?;
-    Ok(())
-}
-
-fn mount_virtual_fs(source: &str, target: &Path, filesystem: &str, options: Option<&str>) -> Result<()> {
-    create_mount_point(target, 0o755)?;
-
-    if let Err(error) = mount(Some(source), target, Some(filesystem), MsFlags::empty(), options) {
-        if error != Errno::EBUSY {
-            return Err(error.into());
-        }
-    }
-    Ok(())
-}
-
-fn mount_kernel_filesystems(root: &Path) -> Result<()> {
-    mount_virtual_fs("proc", &root.join("proc"), "proc", None).context("mount proc")?;
-    mount_virtual_fs("sysfs", &root.join("sys"), "sysfs", None).context("mount sysfs")?;
-    mount_virtual_fs("devtmpfs", &root.join("dev"), "devtmpfs", Some("mode=0755"))
-        .context("mount devtmpfs")?;
-    mount_virtual_fs("tmpfs", &root.join("run"), "tmpfs", Some("mode=0755"))
-        .context("mount /run")?;
-    mount_virtual_fs("tmpfs", &root.join("tmp"), "tmpfs", Some("mode=1777"))
-        .context("mount /tmp")?;
-
-    let dev_pts = root.join("dev/pts");
-    create_mount_point(&dev_pts, 0o755).context("create /dev/pts")?;
-    mount_virtual_fs("devpts", &dev_pts, "devpts", Some("mode=0620")).context("mount /dev/pts")?;
-
-    let dev_shm = root.join("dev/shm");
-    create_mount_point(&dev_shm, 0o1777).context("create /dev/shm")?;
-    mount_virtual_fs("tmpfs", &dev_shm, "tmpfs", Some("mode=1777")).context("mount /dev/shm")?;
-
-    Ok(())
-}
+use crate::mount::mount_kernel_filesystems;
 
 fn exec_config(config: &config::OciConfig) -> Result<()> {
     let command = config.executable()?;

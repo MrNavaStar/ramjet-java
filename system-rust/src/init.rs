@@ -6,6 +6,7 @@ use nix::errno::Errno;
 use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{fork, pause, ForkResult, Pid};
+use crate::mount::mount_kernel_filesystems;
 
 mod config;
 mod mount;
@@ -18,15 +19,11 @@ extern "C" fn handle_signal(_: i32) {
 }
 
 fn install_signal_handlers() -> nix::Result<()> {
-    let handler = SigHandler::Handler(handle_signal);
-    let action = SigAction::new(handler, SaFlags::empty(), SigSet::empty());
-
+    let action = SigAction::new(SigHandler::Handler(handle_signal), SaFlags::empty(), SigSet::empty());
     for signal_number in [Signal::SIGTERM, Signal::SIGINT, Signal::SIGQUIT] {
         unsafe { signal::sigaction(signal_number, &action)? };
     }
-
-    let ignore_sigpipe = SigAction::new(SigHandler::SigIgn, SaFlags::empty(), SigSet::empty());
-    unsafe { signal::sigaction(Signal::SIGPIPE, &ignore_sigpipe)? };
+    unsafe { signal::sigaction(Signal::SIGPIPE, &SigAction::new(SigHandler::SigIgn, SaFlags::empty(), SigSet::empty()))? };
     Ok(())
 }
 
@@ -68,6 +65,8 @@ fn fork_runtime() -> nix::Result<Pid> {
 
 fn main() -> io::Result<()> {
     install_signal_handlers().map_err(io::Error::other)?;
+    mount_kernel_filesystems("/".as_ref()).expect("init: failed to mount kernel filesystems");
+
     let child = fork_runtime().map_err(io::Error::other)?;
 
     while !SHUTTING_DOWN.load(Ordering::Relaxed) {
