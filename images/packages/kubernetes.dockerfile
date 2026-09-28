@@ -1,0 +1,28 @@
+ARG KUBERNETES_VERSION=v1.34.1
+
+FROM golang:1.24-alpine AS kube
+
+ARG KUBERNETES_VERSION
+ARG TARGETARCH
+
+RUN apk add --no-cache ca-certificates curl musl-dev && mkdir -p /src
+RUN curl --fail --location --retry 3  \
+    "https://github.com/kubernetes/kubernetes/archive/refs/tags/${KUBERNETES_VERSION}.tar.gz" \
+    | tar -xz --strip-components=1 -C /src
+
+WORKDIR /src
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH="${TARGETARCH}" \
+    go build -trimpath -tags netgo,osusergo \
+    -ldflags "-s -w -extldflags=-static" \
+    -o /kubelet ./cmd/kubelet
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH="${TARGETARCH}" \
+    go build -trimpath -tags netgo,osusergo \
+    -ldflags "-s -w -extldflags=-static" \
+    -o /kube-controller-manager ./cmd/kube-controller-manager
+
+FROM scratch
+
+COPY --from=kube /kubelet /kubelet
+COPY --from=kube /kube-controller-manager /kube-controller-manager

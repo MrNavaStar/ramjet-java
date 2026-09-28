@@ -14,6 +14,8 @@ pub struct OciConfig {
     pub env: Vec<String>,
     #[serde(rename = "WorkingDir", default)]
     pub working_dir: Option<String>,
+    #[serde(rename = "hostname", default)]
+    pub hostname: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -54,7 +54,6 @@ public final class iPXE {
     }
 
     public static Fate<String> boot(ContainerRef image, Manifest manifest, URI kernel, String url) {
-        AtomicInteger layerIndex = new AtomicInteger();
         return iPXEBuilder.create(script -> script
                 .Clear()
                 .Kernel(new URIBuilder(url)

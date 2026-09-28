@@ -11,6 +11,7 @@ use crate::mount::mount_kernel_filesystems;
 mod config;
 mod mount;
 mod runtime;
+mod net;
 
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
