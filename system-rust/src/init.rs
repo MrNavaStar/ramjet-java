@@ -7,6 +7,8 @@ use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{fork, pause, ForkResult, Pid};
 use crate::mount::mount_kernel_filesystems;
+use crate::net::run_dhcp;
+use crate::runtime::fork_runtime;
 
 mod config;
 mod mount;
@@ -46,29 +48,12 @@ fn reap_children() -> nix::Result<()> {
     }
 }
 
-fn fork_runtime() -> nix::Result<Pid> {
-    match unsafe { fork()? } {
-        ForkResult::Parent { child } => Ok(child),
-        ForkResult::Child => {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("init: failed to create runtime executor");
-            let result = runtime.block_on(runtime::run(Path::new("/image"), Path::new("/root")));
-            if let Err(error) = result {
-                eprintln!("init: runtime failed: {error:#}");
-                std::process::exit(1);
-            }
-            std::process::exit(0);
-        }
-    }
-}
-
 fn main() -> io::Result<()> {
     install_signal_handlers().map_err(io::Error::other)?;
     mount_kernel_filesystems("/".as_ref()).expect("init: failed to mount kernel filesystems");
 
     let child = fork_runtime().map_err(io::Error::other)?;
+    tokio::spawn(run_dhcp("").await);
 
     while !SHUTTING_DOWN.load(Ordering::Relaxed) {
         reap_children().map_err(io::Error::other)?;

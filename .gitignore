@@ -41,3 +41,10 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+.idea
+cache
+extract
+server-rust/server
+server-rust/server/src
+server_new
+system

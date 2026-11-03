@@ -1,5 +1,6 @@
 use core::net::{Ipv4Addr, SocketAddrV4};
-use std::net::Ipv6Addr;
+use std::fs;
+use std::net::{IpAddr, Ipv6Addr};
 use edge_net::dhcp::client::Client;
 use edge_net::dhcp::io::{client::Lease, DEFAULT_CLIENT_PORT, DEFAULT_SERVER_PORT};
 use edge_net::mdns::buf::BufferAccess;
@@ -9,34 +10,99 @@ use edge_net::mdns::{io, HostAnswersMdnsHandler};
 use edge_net::mdns::io::{MdnsIoError, DEFAULT_SOCKET};
 use edge_net::nal::{MacAddr, RawBind, UdpBind, UdpSplit};
 use edge_net::raw::io::RawSocket2Udp;
+use futures_util::TryStreamExt;
+use nix::sys::signal::Signal;
+use nix::net::if_::if_nametoindex;
+use rtnetlink::{new_connection, Handle, LinkUnspec, RouteMessageBuilder};
+use rtnetlink::packet_route::link::LinkMessage;
+use rtnetlink::packet_route::link::LinkFlags;
 
-async fn run_dhcp(if_index: u32, if_mac: MacAddr) -> Result<(), anyhow::Error> {
-    let mut client = Client::new(rand::rng(), if_mac);
+async fn interface_to_link(interface: &str, handle: &Handle) -> anyhow::Result<LinkMessage> {
+    handle
+        .link()
+        .get()
+        .match_name(interface.to_string())
+        .execute()
+        .try_next()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("interface not found"))
+}
 
-    let stack = edge_net::std::Interface::new(if_index);
+async fn interface_up(interface: &str) -> anyhow::Result<()> {
+    let (connection, handle, _) = new_connection()?;
+    tokio::spawn(connection);
+
+    let link = interface_to_link(interface, &handle).await?;
+    handle
+        .link()
+        .set(LinkUnspec::new_with_index(link.header.index).up().build())
+        .execute()
+        .await?;
+
+    Ok(())
+}
+
+async fn set_address(interface: &str, address: IpAddr, prefix_len: u8) -> anyhow::Result<()> {
+    let (connection, handle, _) = new_connection()?;
+    tokio::spawn(connection);
+
+    let link = interface_to_link(interface, &handle).await?;
+    handle
+        .address()
+        .add(link.header.index, address.into(), prefix_len)
+        .execute()
+        .await?;
+
+    Ok(())
+}
+
+async fn set_default_route(interface: &str, gateway: IpAddr) -> anyhow::Result<()> {
+    let (connection, handle, _) = new_connection()?;
+    tokio::spawn(connection);
+
+    handle.route().add(
+        RouteMessageBuilder::<IpAddr>::new()
+        .gateway(gateway)?
+        .output_interface(if_nametoindex(interface)?)
+        .build()
+    ).execute().await?;
+    Ok(())
+}
+
+fn get_mac(interface: &str) -> anyhow::Result<MacAddr> {
+    fs::read_to_string(format!("/sys/class/net/{interface}/address"))?
+        .trim()
+        .split(':')
+        .map(|part| u8::from_str_radix(part, 16))
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("invalid MAC address"))
+}
+
+pub async fn run_dhcp(interface: &str) -> Result<(), anyhow::Error> {
+    let mut client = Client::new(rand::rng(), get_mac(interface)?);
+    let stack = edge_net::std::Interface::new(if_nametoindex(interface)?);
     let mut buf = [0; 1500];
 
     loop {
         let mut socket: RawSocket2Udp<_> = RawSocket2Udp::new(
             stack.bind().await?,
-            Some(SocketAddrV4::new(
-                Ipv4Addr::UNSPECIFIED,
-                DEFAULT_CLIENT_PORT,
-            )),
-            Some(SocketAddrV4::new(
-                Ipv4Addr::UNSPECIFIED,
-                DEFAULT_SERVER_PORT,
-            )),
+            Some(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, DEFAULT_CLIENT_PORT)),
+            Some(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, DEFAULT_SERVER_PORT)),
             [255; 6], // Broadcast
         );
 
-        let (mut lease, options) = Lease::new(&mut client, &mut socket, &mut buf).await?;
+        let (mut lease, network_info) = Lease::new(&mut client, &mut socket, &mut buf).await?;
+
+        network_info.gateway.map(async |gateway| set_default_route(interface, IpAddr::from(gateway)).await);
+        set_address(interface, IpAddr::from(lease.ip), 0).await?;
+        interface_up(interface).await?;
 
         lease.keep(&mut client, &mut socket, &mut buf).await?;
     }
 }
 
-async fn run_mdns<T, RB, SB>(
+/*async fn run_mdns<T, RB, SB>(
     stack: &T,
     recv_buf: RB,
     send_buf: SB,
@@ -76,4 +142,4 @@ where
     );
 
     mdns.run(HostAnswersMdnsHandler::new(&host)).await
-}
+}*/
