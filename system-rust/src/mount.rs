@@ -1,12 +1,13 @@
+use std::collections::BTreeMap;
 use std::fs;
-use std::io;
 use std::path::Path;
-use std::path::PathBuf;
 use std::os::unix::fs::PermissionsExt;
-use anyhow::Context;
+use anyhow::{Context, Result};
 use nix::errno::Errno;
-use nix::mount::{mount, umount, MsFlags};
-use tempfile::Builder;
+use nix::mount::{mount, MsFlags};
+
+/// The mount point disks are mounted into before being bind mounted.
+const DISK_MOUNT_POINT: &str = "/mnt";
 
 fn create_mount_point(path: &Path, mode: u32) -> anyhow::Result<()> {
     fs::create_dir_all(path).with_context(|| format!("create {}", path.display()))?;
@@ -44,50 +45,53 @@ pub fn mount_kernel_filesystems(root: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn mount_device(device: PathBuf, device_path: impl AsRef<Path>, mount_path: impl AsRef<Path>) -> io::Result<PathBuf> {
-    let device_path = device_path.as_ref();
-    let mount_path = mount_path.as_ref();
+/// Reads the disk mount entries from a JSON file, such as `/image/mounts.json`.
+pub fn read_mounts(path: &Path) -> Result<BTreeMap<String, String>> {
+    let contents = fs::read_to_string(path)
+        .with_context(|| format!("read disk mounts {}", path.display()))?;
+    let mounts = serde_json::from_str(&contents)
+        .with_context(|| format!("parse disk mounts {}", path.display()))?;
+    Ok(mounts)
+}
 
-    if !device.exists() {
-        return Err(io::Error::new(io::ErrorKind::NotFound, format!("disk not found: {}", device.display())));
+/// Mounts every configured disk and bind mounts it into place.
+pub fn mount_disks(mounts: &BTreeMap<String, String>, root: &Path) -> Result<()> {
+    for (device, source) in mounts {
+        let (source_on_device, target_on_host) = source
+            .split_once(':')
+            .with_context(|| format!("invalid disk mount entry for device {device}: {source}"))?;
+        mount_disk(device, source_on_device, &*root.join(target_on_host.trim_start_matches("/")))?;
     }
+    Ok(())
+}
 
-    // Create a unique mount directory.
-    let mount_dir = Builder::new().tempdir()?.keep();
-    fs::create_dir_all(&mount_dir)?;
+/// Mounts the disk identified by `device` into a unique mount point under the
+/// disk mount root and bind mounts the given path on the device onto the host.
+pub fn mount_disk(device: &str, source_on_device: &str, target_on_host: &Path) -> Result<()> {
+    let mount_point = Path::new(DISK_MOUNT_POINT).join(device.trim_start_matches("/"));
+    create_mount_point(&mount_point, 0o755)?;
 
-    // Mount the filesystem.
-    mount(Some(device.as_path()),&mount_dir, None::<&str>,MsFlags::empty(),None::<&str>)
-    .map_err(|e| {
-        let _ = fs::remove_dir(&mount_dir);
-        io::Error::other(format!("failed to mount {} at {}: {e}", device.display(), mount_dir.display()))
-    })?;
+    mount(Some(device), &mount_point, None::<&str>, MsFlags::empty(), None::<&str>)
+        .with_context(|| format!("mount disk {device} at {}", mount_point.display()))?;
 
-    // Path within the mounted filesystem.
-    let source_path = mount_dir.join(device_path);
-
-    // Create the bind-mount destination.
-    if source_path.is_dir() {
-        fs::create_dir_all(&source_path)?;
-        fs::create_dir_all(mount_path)?;
+    // The path on the mounted device, e.g. `/mnt/dev/disk/by-label/media_01/some/path/on/device`.
+    let source = mount_point.join(source_on_device.trim_start_matches('/'));
+    
+    if source.is_dir() {
+        create_mount_point(&source, 0o755)?;
+        create_mount_point(&target_on_host, 0o755)?;
     } else {
-        if let Some(parent) = mount_path.parent() {
+        if let Some(parent) = target_on_host.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        if !mount_path.exists() {
-            fs::File::create(mount_path)?;
+        if !target_on_host.exists() {
+            fs::File::create(&target_on_host)?;
         }
     }
 
-    // Bind mount source_path -> mount_path.
-    mount(Some(source_path.as_path()),mount_path,None::<&str>,MsFlags::MS_BIND,None::<&str>)
-    .map_err(|e| {
-        // Best-effort cleanup.
-        let _ = umount(&mount_dir);
-        let _ = fs::remove_dir(&mount_dir);
-        io::Error::other(format!("failed to bind mount {} to {}: {e}", source_path.display(), mount_path.display()))
-    })?;
+    mount(Some(source.as_path()), target_on_host, None::<&str>, MsFlags::MS_BIND, None::<&str>)
+        .with_context(|| format!("bind mount {} to {}", source.display(), target_on_host.display()))?;
 
-    Ok(mount_dir)
+    Ok(())
 }

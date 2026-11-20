@@ -6,9 +6,8 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use nix::unistd::{chdir, chroot, execve, fork, ForkResult, Pid};
 
-use crate::mount::mount_kernel_filesystems;
 use crate::config;
-use crate::net;
+use crate::mount::{mount_disks, mount_kernel_filesystems, read_mounts};
 use crate::net::dhcp::RESOLV_CONF;
 
 fn exec_config(config: &config::OciConfig) -> Result<()> {
@@ -36,11 +35,15 @@ pub async fn run(image_dir: impl AsRef<Path>, output_dir: impl AsRef<Path>) -> R
     ocirender::convert_dir(image_dir, output_dir)
         .await
         .context("extract OCI image")?;
-
+    
     fs::remove_dir_all(image_dir)?;
 
     mount_kernel_filesystems(output_dir)?;
     symlink(RESOLV_CONF, output_dir.join("etc/resolv.conf"))?;
+
+    let mounts = read_mounts(&image_dir.join("mounts.json"))?;
+    mount_disks(&mounts, output_dir)?;
+
     chroot(output_dir)?;
     chdir(config.working_dir())?;
     exec_config(&config)
