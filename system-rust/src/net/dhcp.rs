@@ -10,7 +10,7 @@ use tokio::time::{sleep, timeout, Duration, Instant};
 
 use crate::net::interface::{get_mac, interface_up, set_address, set_default_route};
 
-const RESOLV_CONF: &str = "/etc/resolv.conf";
+pub const RESOLV_CONF: &str = "/etc/resolv.conf";
 
 const SERVER_PORT: u16 = 67;
 const CLIENT_PORT: u16 = 68;

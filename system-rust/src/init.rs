@@ -5,6 +5,7 @@ use nix::errno::Errno;
 use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use nix::sys::wait::{waitpid, WaitStatus};
 use nix::unistd::{pause, Pid};
+use tokio::task;
 use crate::mount::mount_kernel_filesystems;
 use crate::runtime::fork_runtime;
 
@@ -46,9 +47,12 @@ fn reap_children() -> nix::Result<()> {
     }
 }
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     install_signal_handlers().map_err(io::Error::other)?;
     mount_kernel_filesystems("/".as_ref()).expect("init: failed to mount kernel filesystems");
+    
+    task::spawn(net::run());
 
     let child = fork_runtime().map_err(io::Error::other)?;
 

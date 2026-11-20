@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::fs;
+use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -8,6 +9,7 @@ use nix::unistd::{chdir, chroot, execve, fork, ForkResult, Pid};
 use crate::mount::mount_kernel_filesystems;
 use crate::config;
 use crate::net;
+use crate::net::dhcp::RESOLV_CONF;
 
 fn exec_config(config: &config::OciConfig) -> Result<()> {
     let command = config.executable()?;
@@ -38,6 +40,7 @@ pub async fn run(image_dir: impl AsRef<Path>, output_dir: impl AsRef<Path>) -> R
     fs::remove_dir_all(image_dir)?;
 
     mount_kernel_filesystems(output_dir)?;
+    symlink(RESOLV_CONF, output_dir.join("etc/resolv.conf"))?;
     chroot(output_dir)?;
     chdir(config.working_dir())?;
     exec_config(&config)
@@ -51,7 +54,6 @@ pub fn fork_runtime() -> nix::Result<Pid> {
                 .enable_all()
                 .build()
                 .expect("init: failed to create runtime executor");
-            runtime.spawn(net::run());
             let result = runtime.block_on(run(Path::new("/image"), Path::new("/root")));
             if let Err(error) = result {
                 eprintln!("init: runtime failed: {error:#}");
