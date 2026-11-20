@@ -7,6 +7,7 @@ use nix::unistd::{chdir, chroot, execve, fork, ForkResult, Pid};
 
 use crate::mount::mount_kernel_filesystems;
 use crate::config;
+use crate::net;
 
 fn exec_config(config: &config::OciConfig) -> Result<()> {
     let command = config.executable()?;
@@ -50,6 +51,7 @@ pub fn fork_runtime() -> nix::Result<Pid> {
                 .enable_all()
                 .build()
                 .expect("init: failed to create runtime executor");
+            runtime.spawn(net::run());
             let result = runtime.block_on(run(Path::new("/image"), Path::new("/root")));
             if let Err(error) = result {
                 eprintln!("init: runtime failed: {error:#}");

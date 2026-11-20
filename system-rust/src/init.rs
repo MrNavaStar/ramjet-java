@@ -1,13 +1,11 @@
 use std::io;
-use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use nix::errno::Errno;
 use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, SigSet, Signal};
 use nix::sys::wait::{waitpid, WaitStatus};
-use nix::unistd::{fork, pause, ForkResult, Pid};
+use nix::unistd::{pause, Pid};
 use crate::mount::mount_kernel_filesystems;
-use crate::net::run_dhcp;
 use crate::runtime::fork_runtime;
 
 mod config;
@@ -53,7 +51,6 @@ fn main() -> io::Result<()> {
     mount_kernel_filesystems("/".as_ref()).expect("init: failed to mount kernel filesystems");
 
     let child = fork_runtime().map_err(io::Error::other)?;
-    tokio::spawn(run_dhcp("").await);
 
     while !SHUTTING_DOWN.load(Ordering::Relaxed) {
         reap_children().map_err(io::Error::other)?;
