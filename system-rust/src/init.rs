@@ -47,7 +47,7 @@ fn reap_children() -> nix::Result<()> {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> io::Result<()> {
     install_signal_handlers().map_err(io::Error::other)?;
     mount_kernel_filesystems("/".as_ref()).expect("init: failed to mount kernel filesystems");
