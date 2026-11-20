@@ -45,6 +45,8 @@ struct LeaseInfo {
 }
 
 pub async fn run(interface: &str) -> Result<(), anyhow::Error> {
+    interface_up(interface).await?;
+
     let mac = get_mac(interface)?;
     let mut buf = [0u8; 1500];
     let socket = UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, CLIENT_PORT))
@@ -64,7 +66,6 @@ pub async fn run(interface: &str) -> Result<(), anyhow::Error> {
         .map(|subnet_mask| prefix_len_from_mask(subnet_mask))
         .unwrap_or(0);
     set_address(interface, IpAddr::from(lease.ip), prefix_len).await?;
-    interface_up(interface).await?;
     write_resolv_conf(lease.network_info.dns1, lease.network_info.dns2).await?;
 
     keep(&socket, &mac, &mut buf, &mut lease).await;

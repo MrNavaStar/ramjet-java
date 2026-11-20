@@ -32,6 +32,20 @@ pub async fn interface_up(interface: &str) -> Result<()> {
     Ok(())
 }
 
+pub async fn interface_down(interface: &str) -> Result<()> {
+    let (connection, handle, _) = new_connection()?;
+    tokio::spawn(connection);
+
+    let link = interface_to_link(interface, &handle).await?;
+    handle
+        .link()
+        .set(LinkUnspec::new_with_index(link.header.index).down().build())
+        .execute()
+        .await?;
+
+    Ok(())
+}
+
 pub async fn set_address(interface: &str, address: IpAddr, prefix_len: u8) -> Result<()> {
     let (connection, handle, _) = new_connection()?;
     tokio::spawn(connection);
